@@ -2,9 +2,12 @@
 node_modules/
 
 # Build outputs
-dist/
 build/
 coverage/
+
+# Docs (generated)
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # Project-specific
 maplibre_camera_controls/

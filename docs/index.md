@@ -24,3 +24,4 @@ Alternatively, open the live demos directly:
 - Handlers: /Handlers
 - SSR & Next: /SSR-Next
 - Examples: /Examples
+- Behavior Changes: /Behavior-Changes

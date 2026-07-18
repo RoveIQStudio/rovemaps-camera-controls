@@ -228,7 +228,7 @@ interface MousePanOptions {
     inertiaPanYSign?: 1 | -1;
     inertiaPanXSign?: 1 | -1;
     anchorTightness?: number;
-    yieldToBoxZoomShift?: boolean;
+    yieldShiftLeft?: boolean;
 }
 
 interface MouseRotatePitchOptions {
@@ -276,6 +276,7 @@ interface TouchMultiOptions {
     inertiaZoomFriction?: number;
     inertiaRotateFriction?: number;
     showDebugOverlay?: boolean;
+    setTouchAction?: boolean;
 }
 
 interface KeyboardOptions {
@@ -436,6 +437,7 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     private _dragging;
     private _constraints;
     private _softClamping;
+    private _softClampTimer;
     private _suppressEvents;
     private _isInternalUpdate;
     private _resizeObserver?;
@@ -618,7 +620,9 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     private _axisEnd;
     /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
     private _cancelActiveAnimation;
-    /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
+    /** Cancel the pending external-gesture debounce and return the axes it would have ended. */
+    private _absorbPendingExternalEnd;
+    /** End axis lifecycles a previous animation or absorbed gesture burst started but the interrupting one won't finish. */
     private _interruptActiveAnimation;
     private _endAllAxes;
     private _applyBearingSnap;

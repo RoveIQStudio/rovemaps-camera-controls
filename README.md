@@ -3,6 +3,7 @@
 Quick links
 - Live Demo: https://roveiqstudio.github.io/rovemaps-camera-controls/demo/
 - Documentation: https://roveiqstudio.github.io/rovemaps-camera-controls/
+- Behavior changes: docs/Behavior-Changes.md
 
 Drop-in GL JS camera controls for Three.js scenes with (jumpTo/easeTo/flyTo/fitBounds, pan/zoom/rotate/pitch/roll, around-point, padding/offset, events, inertia, reduced motion).
 
