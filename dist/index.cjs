@@ -64,6 +64,12 @@ function zoomScale(zoomDelta) {
 function scaleZoom(scale) {
   return Math.log2(scale);
 }
+function shortestAngleDelta(from, to) {
+  return normalizeAngleDeg(to - from);
+}
+function rubberbandDamp(overshoot, strength) {
+  return overshoot > 0 ? 1 / (1 + overshoot * strength) : 1;
+}
 
 // src/helpers/planarCameraHelper.ts
 var PlanarCameraHelper = class {
@@ -121,15 +127,16 @@ var PlanarCameraHelper = class {
     const viewH = Math.max(1, transform.height - (padding.top + padding.bottom));
     let lo = -24, hi = 32;
     const fitAtZoom = (z) => {
-      var _a2, _b2;
+      var _a2;
       transform.setCenter({ x: targetCenter.x, y: targetCenter.y, z: (_a2 = saved.center.z) != null ? _a2 : 0 });
       transform.setBearing(bearing);
       transform.setPitch(saved.pitch);
       transform.setRoll(saved.roll);
       transform.setZoom(z);
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const up = transform.upAxis === "z" ? "z" : "y";
       for (const c of worldCorners) {
-        const sp = transform.worldToScreen({ x: c.x, y: 0, z: c.y }) || transform.worldToScreen({ x: c.x, y: (_b2 = saved.center.z) != null ? _b2 : 0, z: c.y });
+        const sp = up === "z" ? transform.worldToScreen({ x: c.x, y: c.y, z: 0 }) : transform.worldToScreen({ x: c.x, y: 0, z: c.y });
         const p = sp != null ? sp : { x: 0, y: 0 };
         if (p.x < minX) minX = p.x;
         if (p.x > maxX) maxX = p.x;
@@ -256,6 +263,9 @@ var ThreePlanarTransform = class {
     return this._scale;
   }
   // cached scale for performance
+  get upAxis() {
+    return this._upAxis;
+  }
   get bearing() {
     return this._bearing;
   }
@@ -764,6 +774,13 @@ var MousePanHandler = class {
       var _a, _b, _c, _d, _e, _f, _g, _h;
       if (e.pointerType !== "mouse") return;
       if (e.button !== this.opts.button) return;
+      if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
+      if (this.inertiaHandle != null) {
+        cancelAnimationFrame(this.inertiaHandle);
+        this.inertiaHandle = null;
+      }
+      this.vx = this.vy = this.instVx = this.instVy = 0;
+      this.gvx = this.gvz = this.igvx = this.igvz = 0;
       (_b = (_a = this.el).setPointerCapture) == null ? void 0 : _b.call(_a, e.pointerId);
       this.dragging = false;
       this.startX = this.lastX = e.clientX;
@@ -780,13 +797,21 @@ var MousePanHandler = class {
       }
       const offMove = on(window, "pointermove", this.onMove, { passive: false });
       const offUp = on(window, "pointerup", this.onUp, { passive: true });
+      const offCancel = on(window, "pointercancel", this.cancelDrag, { passive: true });
+      const offBlur = on(window, "blur", this.cancelDrag, { passive: true });
       this.unbindMoveUp = () => {
         offMove();
         offUp();
+        offCancel();
+        offBlur();
       };
     };
     this.onMove = (e) => {
       var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
+      if (typeof e.buttons === "number" && e.buttons === 0) {
+        this.cancelDrag();
+        return;
+      }
       const dx = (e.clientX - this.lastX) * ((_a = this.opts.panXSign) != null ? _a : 1);
       const dy = (e.clientY - this.lastY) * ((_b = this.opts.panYSign) != null ? _b : 1);
       const dt = (performance.now() - this.lastTs) / 1e3;
@@ -812,9 +837,8 @@ var MousePanHandler = class {
           const overX = nextX < bounds.min.x ? bounds.min.x - nextX : nextX > bounds.max.x ? nextX - bounds.max.x : 0;
           const overY = nextY < bounds.min.y ? bounds.min.y - nextY : nextY > bounds.max.y ? nextY - bounds.max.y : 0;
           const s = this.opts.rubberbandStrength;
-          const damp = (o) => o > 0 ? 1 / (1 + o * s) : 1;
-          dgx *= damp(overX);
-          dgz *= damp(overY);
+          dgx *= rubberbandDamp(overX, s);
+          dgz *= rubberbandDamp(overY, s);
         }
         (_k = (_j = this.transform).adjustCenterByGroundDelta) == null ? void 0 : _k.call(_j, dgx, dgz);
         const after = (_n = (_m = (_l = this.transform).groundFromScreen) == null ? void 0 : _m.call(_l, pointer)) != null ? _n : null;
@@ -876,6 +900,17 @@ var MousePanHandler = class {
       if (this.inertiaHandle != null) cancelAnimationFrame(this.inertiaHandle);
       this.inertiaHandle = requestAnimationFrame(() => this.runInertia());
     };
+    /** Hard-stop the gesture without starting inertia (pointercancel, window blur, missed pointerup). */
+    this.cancelDrag = () => {
+      var _a;
+      (_a = this.unbindMoveUp) == null ? void 0 : _a.call(this);
+      this.unbindMoveUp = null;
+      this.dragging = false;
+      this.rectCache = null;
+      this.lastGround = null;
+      this.vx = this.vy = this.instVx = this.instVy = 0;
+      this.gvx = this.gvz = this.igvx = this.igvz = 0;
+    };
     this.el = el;
     this.transform = transform;
     this.helper = helper;
@@ -892,6 +927,7 @@ var MousePanHandler = class {
       inertiaPanYSign: 1,
       inertiaPanXSign: 1,
       anchorTightness: 1,
+      yieldToBoxZoomShift: false,
       ...opts || {}
     };
     if (opts && "inertiaPanFriction" in opts && opts.inertiaPanFriction == null) delete merged.inertiaPanFriction;
@@ -936,9 +972,8 @@ var MousePanHandler = class {
         const overX = nx < bounds.min.x ? bounds.min.x - nx : nx > bounds.max.x ? nx - bounds.max.x : 0;
         const overY = ny < bounds.min.y ? bounds.min.y - ny : ny > bounds.max.y ? ny - bounds.max.y : 0;
         const s = this.opts.rubberbandStrength;
-        const damp = (o) => o > 0 ? 1 / (1 + o * s) : 1;
-        dgx *= damp(overX);
-        dgz *= damp(overY);
+        dgx *= rubberbandDamp(overX, s);
+        dgz *= rubberbandDamp(overY, s);
       }
       (_d = (_c = this.transform).adjustCenterByGroundDelta) == null ? void 0 : _d.call(_c, dgx, dgz);
       this.opts.onChange({ axes: { pan: true } });
@@ -960,6 +995,7 @@ var MouseRotatePitchHandler = class {
     this.onDown = (e) => {
       var _a, _b, _c, _d, _e, _f, _g;
       if (e.pointerType !== "mouse") return;
+      if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
       const isRotateBtn = e.button === this.opts.rotateButton;
       const wantsPitch = this.opts.pitchModifier === "shift" && e.shiftKey || this.opts.pitchModifier === "alt" && (e.altKey || e.metaKey);
       if (!isRotateBtn && !wantsPitch) return;
@@ -976,14 +1012,29 @@ var MouseRotatePitchHandler = class {
       }
       const offMove = on(window, "pointermove", this.onMove, { passive: false });
       const offUp = on(window, "pointerup", this.onUp, { passive: true });
+      const offCancel = on(window, "pointercancel", this.cancelDrag, { passive: true });
+      const offBlur = on(window, "blur", this.cancelDrag, { passive: true });
       this.unbindMoveUp = () => {
         offMove();
         offUp();
+        offCancel();
+        offBlur();
       };
+    };
+    this.cancelDrag = () => {
+      var _a;
+      (_a = this.unbindMoveUp) == null ? void 0 : _a.call(this);
+      this.unbindMoveUp = null;
+      this.dragging = false;
+      this.rectCache = null;
     };
     this.onMove = (e) => {
       var _a, _b, _c, _d, _e, _f;
       if (!this.dragging) return;
+      if (typeof e.buttons === "number" && e.buttons === 0) {
+        this.cancelDrag();
+        return;
+      }
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
       this.lastX = e.clientX;
@@ -1032,6 +1083,7 @@ var MouseRotatePitchHandler = class {
       pitchSign: 1,
       recenterOnPointerDown: false,
       anchorTightness: 1,
+      yieldToBoxZoomShift: false,
       ...opts
     };
   }
@@ -1106,6 +1158,14 @@ var TouchMultiHandler = class {
       }
       this.bindMoveUp();
       if (e.touches.length === 1) {
+        if (this.inertiaHandle != null) {
+          cancelAnimationFrame(this.inertiaHandle);
+          this.inertiaHandle = null;
+        }
+        this.vpx = 0;
+        this.vpy = 0;
+        this.gvx = 0;
+        this.gvz = 0;
         this.firstTouchDownTs = performance.now();
         const t = e.touches.item(0);
         const rect = this.el.getBoundingClientRect();
@@ -1149,9 +1209,8 @@ var TouchMultiHandler = class {
             const overX = nx < bounds.min.x ? bounds.min.x - nx : nx > bounds.max.x ? nx - bounds.max.x : 0;
             const overY = ny < bounds.min.y ? bounds.min.y - ny : ny > bounds.max.y ? ny - bounds.max.y : 0;
             const s2 = this.opts.rubberbandStrength;
-            const damp = (o) => o > 0 ? 1 / (1 + o * s2) : 1;
-            dgx *= damp(overX);
-            dgz *= damp(overY);
+            dgx *= rubberbandDamp(overX, s2);
+            dgz *= rubberbandDamp(overY, s2);
           }
           (_m = (_l = this.transform).adjustCenterByGroundDelta) == null ? void 0 : _m.call(_l, dgx, dgz);
           const after = (_p = (_o = (_n = this.transform).groundFromScreen) == null ? void 0 : _o.call(_n, pointer)) != null ? _p : null;
@@ -1251,9 +1310,8 @@ var TouchMultiHandler = class {
               const overX = nx < bounds.min.x ? bounds.min.x - nx : nx > bounds.max.x ? nx - bounds.max.x : 0;
               const overY = ny < bounds.min.y ? bounds.min.y - ny : ny > bounds.max.y ? ny - bounds.max.y : 0;
               const s2 = this.opts.rubberbandStrength;
-              const damp = (o) => o > 0 ? 1 / (1 + o * s2) : 1;
-              dgx *= damp(overX);
-              dgz *= damp(overY);
+              dgx *= rubberbandDamp(overX, s2);
+              dgz *= rubberbandDamp(overY, s2);
             }
             (_P = (_O = this.transform).adjustCenterByGroundDelta) == null ? void 0 : _P.call(_O, dgx, dgz);
             if (dt > 0) {
@@ -1623,9 +1681,8 @@ var TouchMultiHandler = class {
             const overX = nx < bounds.min.x ? bounds.min.x - nx : nx > bounds.max.x ? nx - bounds.max.x : 0;
             const overY = ny < bounds.min.y ? bounds.min.y - ny : ny > bounds.max.y ? ny - bounds.max.y : 0;
             const s = this.opts.rubberbandStrength;
-            const damp = (o) => o > 0 ? 1 / (1 + o * s) : 1;
-            dgx *= damp(overX);
-            dgz *= damp(overY);
+            dgx *= rubberbandDamp(overX, s);
+            dgz *= rubberbandDamp(overY, s);
           }
           (_e = (_d = this.transform).adjustCenterByGroundDelta) == null ? void 0 : _e.call(_d, dgx, dgz);
           axes.pan = true;
@@ -1782,7 +1839,8 @@ var KeyboardHandler = class {
   }
   enable() {
     if (typeof window === "undefined" || this.unbind) return;
-    const off2 = on(window, "keydown", this.onKey, { passive: !this.opts.preventDefault });
+    if (this.el.tabIndex < 0) this.el.tabIndex = 0;
+    const off2 = on(this.el, "keydown", this.onKey, { passive: !this.opts.preventDefault });
     this.unbind = () => off2();
   }
   destroy() {
@@ -1886,13 +1944,21 @@ var BoxZoomHandler = class {
       this.curPt = { ...this.startPt };
       const offMove = on(window, "pointermove", this.onMove, { passive: false });
       const offUp = on(window, "pointerup", this.onUp, { passive: true });
+      const offCancel = on(window, "pointercancel", (() => this.cleanup()), { passive: true });
+      const offBlur = on(window, "blur", (() => this.cleanup()), { passive: true });
       this.unbindMoveUp = () => {
         offMove();
         offUp();
+        offCancel();
+        offBlur();
       };
     };
     this.onMove = (e) => {
       if (!this.startPt) return;
+      if (typeof e.buttons === "number" && e.buttons === 0) {
+        this.cleanup();
+        return;
+      }
       if (this.opts.preventDefault) e.preventDefault();
       const rect = this.el.getBoundingClientRect();
       this.curPt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -2037,14 +2103,14 @@ var SafariGestureHandler = class {
 // src/handlers/handlerManager.ts
 var HandlerManager = class {
   constructor(el, transform, helper, options) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
     this.el = el;
     this.transform = transform;
     this.helper = helper;
+    const boxZoomEnabled = (options == null ? void 0 : options.boxZoom) !== false;
     if ((_a = options == null ? void 0 : options.suppressContextMenu) != null ? _a : true) {
       this.onCtx = (e) => e.preventDefault();
       this.el.addEventListener("contextmenu", this.onCtx, { capture: true });
-      window.addEventListener("contextmenu", this.onCtx, { capture: true });
     }
     const scrollOpts = options == null ? void 0 : options.scrollZoom;
     if (scrollOpts) {
@@ -2063,6 +2129,7 @@ var HandlerManager = class {
       ...typeof mpOpts === "object" ? mpOpts : {}
     };
     if ((options == null ? void 0 : options.inertiaPanFriction) != null) basePan.inertiaPanFriction = options.inertiaPanFriction;
+    basePan.yieldToBoxZoomShift = (_c = basePan.yieldToBoxZoomShift) != null ? _c : boxZoomEnabled;
     if (options == null ? void 0 : options.rightButtonPan) {
       const basePanSecondary = {
         onChange: options == null ? void 0 : options.onChange,
@@ -2071,31 +2138,34 @@ var HandlerManager = class {
         button: 2
       };
       if ((options == null ? void 0 : options.inertiaPanFriction) != null) basePanSecondary.inertiaPanFriction = options.inertiaPanFriction;
+      basePanSecondary.yieldToBoxZoomShift = (_d = basePanSecondary.yieldToBoxZoomShift) != null ? _d : boxZoomEnabled;
       this.mousePanSecondary = new MousePanHandler(this.el, this.transform, this.helper, basePanSecondary);
       this.mousePanSecondary.enable();
-      const mrpOpts = (_c = options == null ? void 0 : options.mouseRotatePitch) != null ? _c : {};
+      const mrpOpts = (_e = options == null ? void 0 : options.mouseRotatePitch) != null ? _e : {};
       const mrpBase = {
         onChange: options == null ? void 0 : options.onChange,
         rotateButton: 0,
         ...typeof mrpOpts === "object" ? mrpOpts : {}
       };
       if ((options == null ? void 0 : options.anchorTightness) != null) mrpBase.anchorTightness = options.anchorTightness;
+      mrpBase.yieldToBoxZoomShift = (_f = mrpBase.yieldToBoxZoomShift) != null ? _f : boxZoomEnabled;
       this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
       this.mouseRotatePitch.enable();
     } else {
       this.mousePan = new MousePanHandler(this.el, this.transform, this.helper, basePan);
       this.mousePan.enable();
-      const mrpOpts = (_d = options == null ? void 0 : options.mouseRotatePitch) != null ? _d : {};
+      const mrpOpts = (_g = options == null ? void 0 : options.mouseRotatePitch) != null ? _g : {};
       const mrpBase = {
         onChange: options == null ? void 0 : options.onChange,
         ...typeof mrpOpts === "object" ? mrpOpts : {}
       };
       if ((options == null ? void 0 : options.anchorTightness) != null) mrpBase.anchorTightness = options.anchorTightness;
+      mrpBase.yieldToBoxZoomShift = (_h = mrpBase.yieldToBoxZoomShift) != null ? _h : boxZoomEnabled;
       this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
       this.mouseRotatePitch.enable();
     }
-    const touchOpts = (_e = options == null ? void 0 : options.touch) != null ? _e : {};
-    const touchBase = typeof touchOpts === "object" ? { ...touchOpts } : { onChange: options == null ? void 0 : options.onChange };
+    const touchOpts = (_i = options == null ? void 0 : options.touch) != null ? _i : {};
+    const touchBase = { onChange: options == null ? void 0 : options.onChange, ...typeof touchOpts === "object" ? touchOpts : {} };
     if ((options == null ? void 0 : options.anchorTightness) != null) touchBase.anchorTightness = options.anchorTightness;
     if ((options == null ? void 0 : options.rubberbandStrength) != null) touchBase.rubberbandStrength = options.rubberbandStrength;
     if ((options == null ? void 0 : options.inertiaPanFriction) != null) touchBase.inertiaPanFriction = options.inertiaPanFriction;
@@ -2110,31 +2180,33 @@ var HandlerManager = class {
     }
     this.touch = new TouchMultiHandler(this.el, this.transform, this.helper, touchBase);
     this.touch.enable();
-    const kbOpts = (_f = options == null ? void 0 : options.keyboard) != null ? _f : {};
+    const kbOpts = (_j = options == null ? void 0 : options.keyboard) != null ? _j : {};
     this.keyboard = new KeyboardHandler(
       this.el,
       this.transform,
       this.helper,
-      typeof kbOpts === "object" ? kbOpts : { onChange: options == null ? void 0 : options.onChange }
+      { onChange: options == null ? void 0 : options.onChange, ...typeof kbOpts === "object" ? kbOpts : {} }
     );
     this.keyboard.enable();
-    const dblOpts = (_g = options == null ? void 0 : options.dblclick) != null ? _g : {};
+    const dblOpts = (_k = options == null ? void 0 : options.dblclick) != null ? _k : {};
     this.dblclick = new DblclickHandler(
       this.el,
       this.transform,
       this.helper,
-      typeof dblOpts === "object" ? dblOpts : { onChange: options == null ? void 0 : options.onChange }
+      { onChange: options == null ? void 0 : options.onChange, ...typeof dblOpts === "object" ? dblOpts : {} }
     );
     this.dblclick.enable();
-    const boxOpts = (_h = options == null ? void 0 : options.boxZoom) != null ? _h : {};
-    this.boxZoom = new BoxZoomHandler(
-      this.el,
-      this.transform,
-      this.helper,
-      typeof boxOpts === "object" ? boxOpts : { onChange: options == null ? void 0 : options.onChange }
-    );
-    this.boxZoom.enable();
-    const sg = (_i = options == null ? void 0 : options.safariGestures) != null ? _i : false;
+    if (boxZoomEnabled) {
+      const boxOpts = (_l = options == null ? void 0 : options.boxZoom) != null ? _l : {};
+      this.boxZoom = new BoxZoomHandler(
+        this.el,
+        this.transform,
+        this.helper,
+        { onChange: options == null ? void 0 : options.onChange, ...typeof boxOpts === "object" ? boxOpts : {} }
+      );
+      this.boxZoom.enable();
+    }
+    const sg = (_m = options == null ? void 0 : options.safariGestures) != null ? _m : false;
     const gestureSupported = typeof window !== "undefined" && ("ongesturestart" in window || typeof window.GestureEvent !== "undefined");
     const touchCapable = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     if (sg && gestureSupported && !touchCapable) {
@@ -2151,7 +2223,6 @@ var HandlerManager = class {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     if (this.onCtx) {
       this.el.removeEventListener("contextmenu", this.onCtx, { capture: true });
-      window.removeEventListener("contextmenu", this.onCtx, { capture: true });
       this.onCtx = void 0;
     }
     (_a = this.scroll) == null ? void 0 : _a.destroy();
@@ -2207,8 +2278,10 @@ var CameraController = class extends Evented {
     super();
     this._moving = false;
     this._animHandle = null;
+    this._animGeneration = 0;
     this._bearingSnapEps = 1e-3;
     this._moveEndTimer = null;
+    this._pendingExternalAxes = {};
     this._zooming = false;
     this._rotating = false;
     this._pitching = false;
@@ -2283,6 +2356,7 @@ var CameraController = class extends Evented {
   }
   dispose() {
     var _a, _b;
+    this._animGeneration++;
     if (this._animHandle != null) {
       caf(this._animHandle);
       this._animHandle = null;
@@ -2436,9 +2510,6 @@ var CameraController = class extends Evented {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     const essential = (_a = options.essential) != null ? _a : false;
     const animate = (_b = options.animate) != null ? _b : true;
-    if (!essential && browser.reducedMotion()) {
-      return this.jumpTo(options);
-    }
     const start = {
       center: this.getCenter(),
       zoom: this.getZoom(),
@@ -2466,6 +2537,11 @@ var CameraController = class extends Evented {
       const dyW = ry / s;
       target.center = { x: target.center.x + dxW, y: target.center.y + dyW, z: target.center.z };
     }
+    target.bearing = start.bearing + shortestAngleDelta(start.bearing, target.bearing);
+    target.roll = start.roll + shortestAngleDelta(start.roll, target.roll);
+    if (!essential && browser.reducedMotion()) {
+      return this.jumpTo(target);
+    }
     if (!animate) {
       return this.jumpTo(target);
     }
@@ -2479,6 +2555,7 @@ var CameraController = class extends Evented {
       pan: !!(options.center || options.offset || options.around === "pointer")
     };
     this._startMoveLifecycle();
+    this._interruptActiveAnimation(axes);
     this._axisStart(axes);
     if (this._easeAbort) this._easeAbort.abort();
     this._easeAbort = new AbortController();
@@ -2500,15 +2577,7 @@ var CameraController = class extends Evented {
     if (this._useExternalLoop) {
       return this;
     }
-    const loop = () => {
-      const continues = this._advanceAnimation(browser.now());
-      if (continues) {
-        this._animHandle = raf(loop);
-      } else {
-        this._animHandle = null;
-      }
-    };
-    this._animHandle = raf(loop);
+    this._startAnimationLoop();
     return this;
   }
   flyTo(options) {
@@ -2518,11 +2587,13 @@ var CameraController = class extends Evented {
     const startZoom = this.getZoom();
     const endZoom = typeof options.zoom === "number" ? options.zoom : startZoom;
     const startBearing = this.getBearing();
-    const endBearing = typeof options.bearing === "number" ? options.bearing : startBearing;
+    const endBearingRaw = typeof options.bearing === "number" ? options.bearing : startBearing;
+    const endBearing = startBearing + shortestAngleDelta(startBearing, endBearingRaw);
     const startPitch = this.getPitch();
     const endPitch = typeof options.pitch === "number" ? options.pitch : startPitch;
     const startRoll = this.getRoll();
-    const endRoll = typeof options.roll === "number" ? options.roll : startRoll;
+    const endRollRaw = typeof options.roll === "number" ? options.roll : startRoll;
+    const endRoll = startRoll + shortestAngleDelta(startRoll, endRollRaw);
     const dx = endCenter.x - startCenter.x;
     const dy = endCenter.y - startCenter.y;
     const worldDist = Math.hypot(dx, dy);
@@ -2568,6 +2639,7 @@ var CameraController = class extends Evented {
       const easing2 = (_f = options.easing) != null ? _f : defaultEasing;
       const axes2 = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
       this._startMoveLifecycle();
+      this._interruptActiveAnimation(axes2);
       this._axisStart(axes2);
       if (this._easeAbort) this._easeAbort.abort();
       this._easeAbort = new AbortController();
@@ -2606,20 +2678,13 @@ var CameraController = class extends Evented {
       if (this._useExternalLoop) {
         return this;
       }
-      const loop2 = () => {
-        const continues = this._advanceAnimation(browser.now());
-        if (continues) {
-          this._animHandle = raf(loop2);
-        } else {
-          this._animHandle = null;
-        }
-      };
-      this._animHandle = raf(loop2);
+      this._startAnimationLoop();
       return this;
     }
     const easing = (_g = options.easing) != null ? _g : defaultEasing;
     const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
     this._startMoveLifecycle();
+    this._interruptActiveAnimation(axes);
     this._axisStart(axes);
     if (this._easeAbort) this._easeAbort.abort();
     this._easeAbort = new AbortController();
@@ -2672,20 +2737,13 @@ var CameraController = class extends Evented {
     if (this._useExternalLoop) {
       return this;
     }
-    const loop = () => {
-      const continues = this._advanceAnimation(browser.now());
-      if (continues) {
-        this._animHandle = raf(loop);
-      } else {
-        this._animHandle = null;
-      }
-    };
-    this._animHandle = raf(loop);
+    this._startAnimationLoop();
     return this;
   }
   fitBounds(bounds, options) {
     const { center, zoom, bearing } = new PlanarCameraHelper().cameraForBoxAndBearing(this.transform, bounds, options);
-    return this.easeTo({ center, zoom, bearing, ...options });
+    const { offset: _offset, padding: _padding, ...ease } = options != null ? options : {};
+    return this.easeTo({ ...ease, center, zoom, bearing });
   }
   cameraForBounds(bounds, options) {
     return new PlanarCameraHelper().cameraForBoxAndBearing(this.transform, bounds, options);
@@ -2709,14 +2767,37 @@ var CameraController = class extends Evented {
    * Call this from your animation loop (e.g., React Three Fiber's useFrame) when
    * useExternalAnimationLoop is true. This advances any active easeTo/flyTo animation.
    *
-   * @param deltaTime - Optional delta time in seconds (currently unused, for future use)
+   * @param _deltaTime - Optional delta time in seconds (currently unused, for future use)
    * @returns this for chaining
    */
-  update(deltaTime) {
+  update(_deltaTime) {
     if (this._activeAnimation) {
       this._advanceAnimation(browser.now());
     }
     return this;
+  }
+  /**
+   * Start (or restart) the internal RAF loop. Cancels any prior loop so at most
+   * one is ever alive; the generation counter kills already-scheduled stale
+   * callbacks when an interruption or dispose happens between frames.
+   */
+  _startAnimationLoop() {
+    const gen = ++this._animGeneration;
+    if (this._animHandle != null) {
+      caf(this._animHandle);
+      this._animHandle = null;
+    }
+    if (this._useExternalLoop) return;
+    const loop = () => {
+      if (gen !== this._animGeneration) return;
+      const continues = this._advanceAnimation(browser.now());
+      if (continues) {
+        this._animHandle = raf(loop);
+      } else {
+        this._animHandle = null;
+      }
+    };
+    this._animHandle = raf(loop);
   }
   /**
    * Advance the active animation by one frame.
@@ -2727,7 +2808,7 @@ var CameraController = class extends Evented {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     if (!this._activeAnimation) return false;
     const anim = this._activeAnimation;
-    const k = Math.min(1, (now - anim.t0) / anim.duration);
+    const k = anim.duration <= 0 ? 1 : Math.min(1, (now - anim.t0) / anim.duration);
     const e = anim.easing(k);
     if (anim.type === "ease") {
       const done = !(this._easeAbort && !this._easeAbort.signal.aborted) || k >= 1;
@@ -2965,13 +3046,23 @@ var CameraController = class extends Evented {
     this._axisStart(axes, delta == null ? void 0 : delta.originalEvent);
     this._axisEmitDuring(axes, delta == null ? void 0 : delta.originalEvent);
     this._emitRender();
+    const p = this._pendingExternalAxes;
+    this._pendingExternalAxes = {
+      zoom: p.zoom || axes.zoom,
+      rotate: p.rotate || axes.rotate,
+      pitch: p.pitch || axes.pitch,
+      roll: p.roll || axes.roll,
+      pan: p.pan || axes.pan
+    };
     if (this._moveEndTimer != null) {
       (_b = globalThis.clearTimeout) == null ? void 0 : _b.call(globalThis, this._moveEndTimer);
     }
     this._moveEndTimer = (_c = globalThis.setTimeout) == null ? void 0 : _c.call(globalThis, () => {
-      if (axes.rotate) this._applyBearingSnap(delta == null ? void 0 : delta.originalEvent);
+      const endAxes = this._pendingExternalAxes;
+      this._pendingExternalAxes = {};
+      if (endAxes.rotate) this._applyBearingSnap(delta == null ? void 0 : delta.originalEvent);
       this._applySoftPanBounds();
-      this._axisEnd(axes, delta == null ? void 0 : delta.originalEvent);
+      this._axisEnd(endAxes, delta == null ? void 0 : delta.originalEvent);
       this._endMoveLifecycle();
       this._moveEndTimer = null;
     }, 120);
@@ -3026,6 +3117,18 @@ var CameraController = class extends Evented {
       this._dragging = false;
       this._fire("dragend", { originalEvent });
     }
+  }
+  /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
+  _interruptActiveAnimation(newAxes) {
+    const prev = this._activeAnimation;
+    if (!prev) return;
+    this._axisEnd({
+      zoom: prev.axes.zoom && !newAxes.zoom,
+      rotate: prev.axes.rotate && !newAxes.rotate,
+      pitch: prev.axes.pitch && !newAxes.pitch,
+      roll: prev.axes.roll && !newAxes.roll,
+      pan: prev.axes.pan && !newAxes.pan
+    });
   }
   _endAllAxes() {
     if (this._zooming) {
@@ -3086,16 +3189,78 @@ var CameraController = class extends Evented {
 function createController(options) {
   return new CameraController(options);
 }
+function isSSRStub(c) {
+  return c.isSSRStub === true;
+}
+function makeSSRStub() {
+  const padding = () => ({ top: 0, right: 0, bottom: 0, left: 0 });
+  const center = () => ({ x: 0, y: 0, z: 0 });
+  const transformStub = {
+    center: center(),
+    zoom: 0,
+    bearing: 0,
+    pitch: 0,
+    roll: 0,
+    padding: padding(),
+    width: 0,
+    height: 0,
+    scale: 1,
+    worldToScreen: () => null,
+    screenToWorld: () => null,
+    groundFromScreen: () => null,
+    getPanBounds: () => void 0,
+    adjustCenterByGroundDelta: () => {
+    },
+    deferApply: (fn) => fn(),
+    setCenter: () => {
+    },
+    setZoom: () => {
+    },
+    setBearing: () => {
+    },
+    setPitch: () => {
+    },
+    setRoll: () => {
+    },
+    setPadding: () => {
+    },
+    setViewport: () => {
+    },
+    setConstraints: () => {
+    }
+  };
+  const values = {
+    isSSRStub: true,
+    transform: transformStub,
+    getCenter: center,
+    getZoom: () => 0,
+    getBearing: () => 0,
+    getPitch: () => 0,
+    getRoll: () => 0,
+    getPadding: padding,
+    isMoving: () => false,
+    isZooming: () => false,
+    isRotating: () => false,
+    isPitching: () => false,
+    isRolling: () => false,
+    getStateSnapshot: () => ({ center: center(), zoom: 0, bearing: 0, pitch: 0, roll: 0, padding: padding() }),
+    cameraForBounds: () => ({ center: { x: 0, y: 0 }, zoom: 0, bearing: 0, pitch: 0 })
+  };
+  const chain = () => stub;
+  const stub = new Proxy({}, {
+    get(_t, prop) {
+      if (prop === "then") return void 0;
+      if (prop === Symbol.toPrimitive) return void 0;
+      if (prop in values) return values[prop];
+      return chain;
+    },
+    has: () => true
+  });
+  return stub;
+}
 function createControllerForNext(options) {
   if (typeof window === "undefined") {
-    return {
-      // no-op stub API for server
-      dispose() {
-      },
-      setViewport() {
-      },
-      isSSRStub: true
-    };
+    return makeSSRStub();
   }
   const resolved = typeof options === "function" ? options() : options;
   return new CameraController(resolved);
@@ -3112,6 +3277,7 @@ exports.createControllerForNext = createControllerForNext;
 exports.cubicBezier = cubicBezier;
 exports.defaultEasing = defaultEasing;
 exports.degToRad = degToRad;
+exports.isSSRStub = isSSRStub;
 exports.lerp = lerp;
 exports.mod = mod;
 exports.normalizeAngleDeg = normalizeAngleDeg;
@@ -3119,7 +3285,9 @@ exports.off = off;
 exports.on = on;
 exports.radToDeg = radToDeg;
 exports.raf = raf;
+exports.rubberbandDamp = rubberbandDamp;
 exports.scaleZoom = scaleZoom;
+exports.shortestAngleDelta = shortestAngleDelta;
 exports.worldSizeForZoom = worldSizeForZoom;
 exports.zoomScale = zoomScale;
 //# sourceMappingURL=index.cjs.map

@@ -228,6 +228,7 @@ interface MousePanOptions {
     inertiaPanYSign?: 1 | -1;
     inertiaPanXSign?: 1 | -1;
     anchorTightness?: number;
+    yieldToBoxZoomShift?: boolean;
 }
 
 interface MouseRotatePitchOptions {
@@ -243,6 +244,7 @@ interface MouseRotatePitchOptions {
     pitchSign?: 1 | -1;
     recenterOnPointerDown?: boolean;
     anchorTightness?: number;
+    yieldToBoxZoomShift?: boolean;
 }
 
 interface TouchMultiOptions {
@@ -408,7 +410,7 @@ type CameraMoveEvents = {
     dragend: {
         originalEvent?: Event;
     };
-    renderFrame: {};
+    renderFrame: Record<string, never>;
     error: {
         error: Error;
     };
@@ -420,11 +422,13 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     readonly transform: ITransform;
     private _moving;
     private _animHandle;
+    private _animGeneration;
     private _easeAbort?;
     private _bearingSnap;
     private _bearingSnapEps;
     private _handlers?;
     private _moveEndTimer;
+    private _pendingExternalAxes;
     private _zooming;
     private _rotating;
     private _pitching;
@@ -589,10 +593,16 @@ declare class CameraController extends Evented<CameraMoveEvents> {
      * Call this from your animation loop (e.g., React Three Fiber's useFrame) when
      * useExternalAnimationLoop is true. This advances any active easeTo/flyTo animation.
      *
-     * @param deltaTime - Optional delta time in seconds (currently unused, for future use)
+     * @param _deltaTime - Optional delta time in seconds (currently unused, for future use)
      * @returns this for chaining
      */
-    update(deltaTime?: number): this;
+    update(_deltaTime?: number): this;
+    /**
+     * Start (or restart) the internal RAF loop. Cancels any prior loop so at most
+     * one is ever alive; the generation counter kills already-scheduled stale
+     * callbacks when an interruption or dispose happens between frames.
+     */
+    private _startAnimationLoop;
     /**
      * Advance the active animation by one frame.
      * Returns true if animation continues, false if complete.
@@ -606,6 +616,8 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     private _axisStart;
     private _axisEmitDuring;
     private _axisEnd;
+    /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
+    private _interruptActiveAnimation;
     private _endAllAxes;
     private _applyBearingSnap;
     private _applySoftPanBounds;
@@ -613,6 +625,10 @@ declare class CameraController extends Evented<CameraMoveEvents> {
 
 type ControllerOptions = ConstructorParameters<typeof CameraController>[0];
 declare function createController(options: ControllerOptions): CameraController;
+type SSRControllerStub = CameraController & {
+    isSSRStub: true;
+};
+declare function isSSRStub(c: CameraController): c is SSRControllerStub;
 declare function createControllerForNext(options: ControllerOptions | (() => ControllerOptions)): CameraController;
 
 declare function clamp(v: number, min: number, max: number): number;
@@ -623,6 +639,8 @@ declare function radToDeg(r: number): number;
 declare function normalizeAngleDeg(a: number): number;
 declare function zoomScale(zoomDelta: number): number;
 declare function scaleZoom(scale: number): number;
+declare function shortestAngleDelta(from: number, to: number): number;
+declare function rubberbandDamp(overshoot: number, strength: number): number;
 
 type Easing = (t: number) => number;
 declare const defaultEasing: Easing;
@@ -639,4 +657,4 @@ type ListenerOptions = boolean | AddEventListenerOptions;
 declare function on<K extends keyof HTMLElementEventMap>(el: HTMLElement | Window | Document, type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: ListenerOptions): () => void;
 declare function off<K extends keyof HTMLElementEventMap>(el: HTMLElement | Window | Document, type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: ListenerOptions): void;
 
-export { type Bounds2D, CameraController, type CameraControllerOptions, type CameraForBoundsOptions, type CameraMoveEvents, type Center, type ControllerOptions, type EaseOptions, type Easing, Evented, type FlyToOptions, type GroundIntersectionFn, type GroundPoint, type ICameraHelper, type IReadonlyTransform, type ITransform, type Listener, type ListenerOptions, type MethodOptions, type Padding, type Projection, type ProjectionAdapter, TILE_SIZE, type ThreePlanarTransformOptions, type TransformConstraints, type Vec2, type ZoomMode, browser, caf, clamp, createController, createControllerForNext, cubicBezier, defaultEasing, degToRad, lerp, mod, normalizeAngleDeg, off, on, radToDeg, raf, scaleZoom, worldSizeForZoom, zoomScale };
+export { type Bounds2D, type BoxZoomOptions, CameraController, type CameraControllerOptions, type CameraForBoundsOptions, type CameraMoveEvents, type Center, type ControllerOptions, type DblclickOptions, type EaseOptions, type Easing, Evented, type FlyToOptions, type GroundIntersectionFn, type GroundPoint, type HandlerAxes, type HandlerDelta, type HandlerManagerOptions, type ICameraHelper, type IReadonlyTransform, type ITransform, type KeyboardOptions, type Listener, type ListenerOptions, type MethodOptions, type MousePanOptions, type MouseRotatePitchOptions, type Padding, type Projection, type ProjectionAdapter, type SSRControllerStub, type SafariGestureOptions, type ScrollZoomOptions, TILE_SIZE, type ThreePlanarTransformOptions, type TouchMultiOptions, type TransformConstraints, type Vec2, type ZoomMode, browser, caf, clamp, createController, createControllerForNext, cubicBezier, defaultEasing, degToRad, isSSRStub, lerp, mod, normalizeAngleDeg, off, on, radToDeg, raf, rubberbandDamp, scaleZoom, shortestAngleDelta, worldSizeForZoom, zoomScale };
