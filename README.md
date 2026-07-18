@@ -44,7 +44,7 @@ const controller = createControllerForNext(() => ({ camera, domElement }));
 This library is built with security in mind:
 
 - **Zero production dependencies** (only peer dependency on Three.js)
-- **Regular security audits** - production dependencies checked in CI
+- **Regular security audits** - `npm audit` (critical severity) runs in CI
 - **TypeScript strict mode** - prevents common runtime errors
 - **SSR-safe** - proper guards for server-side rendering
 - **Memory-safe** - automatic cleanup of event listeners and resources

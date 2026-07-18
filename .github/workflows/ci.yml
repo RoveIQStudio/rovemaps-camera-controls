@@ -22,8 +22,8 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Security audit
-        run: npm audit --omit=dev
+        run: npm audit --audit-level=critical
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
-      - run: npm test
+      - run: npm run test:coverage
