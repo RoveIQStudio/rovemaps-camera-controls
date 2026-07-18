@@ -43,4 +43,49 @@ describe('easeTo edge cases', () => {
     expect(Number.isFinite(ctl.getCenter().x)).toBe(true);
     ctl.dispose();
   });
+
+  it('animate:false easeTo hard-cancels an in-flight animation (no resurrection)', () => {
+    let fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController();
+
+    ctl.easeTo({ zoom: 5, duration: 1000 });
+    fakeNow = 100;
+    ctl.update(); // advance the in-flight animation partway toward zoom 5
+
+    let moveendCount = 0;
+    ctl.on('moveend', () => moveendCount++);
+
+    ctl.easeTo({ zoom: 2, animate: false }); // instant jump must supersede the glide
+    fakeNow = 1100; // past the original end time
+    ctl.update(); // a live loop would finish at 5 here — fails before fix
+
+    expect(ctl.getZoom()).toBe(2);
+    expect(ctl.isMoving()).toBe(false);
+    expect(moveendCount).toBe(1);
+    ctl.dispose();
+  });
+
+  it('reduced-motion easeTo hard-cancels an in-flight animation (no resurrection)', () => {
+    let fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController();
+
+    ctl.easeTo({ zoom: 5, duration: 1000 });
+    fakeNow = 100;
+    ctl.update();
+
+    let moveendCount = 0;
+    ctl.on('moveend', () => moveendCount++);
+
+    vi.spyOn(browser, 'reducedMotion').mockReturnValue(true);
+    ctl.easeTo({ zoom: 2 }); // reduced-motion -> instant jump, ordinary params
+    fakeNow = 1100;
+    ctl.update();
+
+    expect(ctl.getZoom()).toBe(2);
+    expect(ctl.isMoving()).toBe(false);
+    expect(moveendCount).toBe(1);
+    ctl.dispose();
+  });
 });

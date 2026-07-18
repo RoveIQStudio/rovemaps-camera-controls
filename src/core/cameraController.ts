@@ -368,9 +368,11 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
     // Reduced motion / no-animate: land on the fully-resolved target in one jump
     if (!essential && browser.reducedMotion()) {
+      this._cancelActiveAnimation();
       return this.jumpTo(target);
     }
     if (!animate) {
+      this._cancelActiveAnimation();
       return this.jumpTo(target);
     }
 
@@ -996,6 +998,17 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (axes.pitch && this._pitching) { this._pitching = false; this._fire('pitchend', { originalEvent }); }
     if (axes.roll && this._rolling) { this._rolling = false; this._fire('rollend', { originalEvent }); }
     if (axes.pan && this._dragging) { this._dragging = false; this._fire('dragend', { originalEvent }); }
+  }
+
+  /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
+  private _cancelActiveAnimation() {
+    if (!this._activeAnimation) return;
+    if (this._easeAbort) this._easeAbort.abort();
+    this._animGeneration++;
+    if (this._animHandle != null) { caf(this._animHandle); this._animHandle = null; }
+    this._axisEnd(this._activeAnimation.axes);
+    this._activeAnimation = null;
+    this._endMoveLifecycle();
   }
 
   /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
