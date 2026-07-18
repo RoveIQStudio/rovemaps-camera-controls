@@ -161,15 +161,17 @@ export class HandlerManager {
       { onChange: options?.onChange, ...(typeof dblOpts === 'object' ? dblOpts : {}) }
     );
     this.dblclick.enable();
-    // Box zoom (default enabled)
-    const boxOpts = options?.boxZoom ?? {};
-    this.boxZoom = new BoxZoomHandler(
-      this.el,
-      this.transform,
-      this.helper,
-      { onChange: options?.onChange, ...(typeof boxOpts === 'object' ? boxOpts : {}) }
-    );
-    this.boxZoom.enable();
+    // Box zoom (default enabled; boxZoom: false disables)
+    if (boxZoomEnabled) {
+      const boxOpts = options?.boxZoom ?? {};
+      this.boxZoom = new BoxZoomHandler(
+        this.el,
+        this.transform,
+        this.helper,
+        { onChange: options?.onChange, ...(typeof boxOpts === 'object' ? boxOpts : {}) }
+      );
+      this.boxZoom.enable();
+    }
     // Safari gesture handler (optional)
     const sg = options?.safariGestures ?? false;
     // Desktop-only Safari gestures: enable when gesture events exist and the device is not touch-capable.
