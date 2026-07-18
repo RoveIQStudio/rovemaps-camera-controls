@@ -136,6 +136,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
   readonly transform: ITransform;
   private _moving = false;
   private _animHandle: number | null = null;
+  private _animGeneration = 0;
   private _easeAbort?: AbortController;
   private _bearingSnap: number;
   private _bearingSnapEps: number = 0.001;
@@ -231,6 +232,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
   }
 
   dispose() {
+    this._animGeneration++;
     if (this._animHandle != null) {
       caf(this._animHandle);
       this._animHandle = null;
@@ -410,16 +412,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
       return this;
     }
 
-    // Otherwise, use internal RAF loop
-    const loop = () => {
-      const continues = this._advanceAnimation(browser.now());
-      if (continues) {
-        this._animHandle = raf(loop);
-      } else {
-        this._animHandle = null;
-      }
-    };
-    this._animHandle = raf(loop);
+    this._startAnimationLoop();
     return this;
   }
 
@@ -546,16 +539,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
         return this;
       }
 
-      // Otherwise, use internal RAF loop
-      const loop = () => {
-        const continues = this._advanceAnimation(browser.now());
-        if (continues) {
-          this._animHandle = raf(loop);
-        } else {
-          this._animHandle = null;
-        }
-      };
-      this._animHandle = raf(loop);
+      this._startAnimationLoop();
       return this;
     }
 
@@ -623,16 +607,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
       return this;
     }
 
-    // Otherwise, use internal RAF loop
-    const loop = () => {
-      const continues = this._advanceAnimation(browser.now());
-      if (continues) {
-        this._animHandle = raf(loop);
-      } else {
-        this._animHandle = null;
-      }
-    };
-    this._animHandle = raf(loop);
+    this._startAnimationLoop();
     return this;
   }
 
@@ -681,6 +656,23 @@ export class CameraController extends Evented<CameraMoveEvents> {
       this._advanceAnimation(browser.now());
     }
     return this;
+  }
+
+  /**
+   * Start (or restart) the internal RAF loop. Cancels any prior loop so at most
+   * one is ever alive; the generation counter kills already-scheduled stale
+   * callbacks when an interruption or dispose happens between frames.
+   */
+  private _startAnimationLoop() {
+    const gen = ++this._animGeneration;
+    if (this._animHandle != null) { caf(this._animHandle); this._animHandle = null; }
+    if (this._useExternalLoop) return;
+    const loop = () => {
+      if (gen !== this._animGeneration) return; // superseded
+      const continues = this._advanceAnimation(browser.now());
+      if (continues) { this._animHandle = raf(loop); } else { this._animHandle = null; }
+    };
+    this._animHandle = raf(loop);
   }
 
   /**
