@@ -328,12 +328,8 @@ export class CameraController extends Evented<CameraMoveEvents> {
   rollBy(delta: number, opts?: EaseOptions) { return this.rollTo(this.getRoll() + delta, opts); }
 
   easeTo(options: { center?: { x: number; y: number; z?: number }; zoom?: number; bearing?: number; pitch?: number; roll?: number; padding?: Partial<Padding>; offset?: { x: number; y: number } } & EaseOptions) {
-    // Reduced motion handling
     const essential = options.essential ?? false;
     const animate = options.animate ?? true;
-    if (!essential && browser.reducedMotion()) {
-      return this.jumpTo(options);
-    }
 
     const start = {
       center: this.getCenter(),
@@ -370,6 +366,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
     target.bearing = start.bearing + shortestAngleDelta(start.bearing, target.bearing);
     target.roll = start.roll + shortestAngleDelta(start.roll, target.roll);
 
+    // Reduced motion / no-animate: land on the fully-resolved target in one jump
+    if (!essential && browser.reducedMotion()) {
+      return this.jumpTo(target);
+    }
     if (!animate) {
       return this.jumpTo(target);
     }
@@ -691,7 +691,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (!this._activeAnimation) return false;
 
     const anim = this._activeAnimation;
-    const k = Math.min(1, (now - anim.t0) / anim.duration);
+    const k = anim.duration <= 0 ? 1 : Math.min(1, (now - anim.t0) / anim.duration);
     const e = anim.easing(k);
     const __DBG = false;
 
