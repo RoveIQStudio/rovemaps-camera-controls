@@ -31,6 +31,7 @@ export class DblclickHandler {
       anchorTightness: 1,
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {

@@ -42,4 +42,25 @@ describe('keyboard handler scoping', () => {
     expect(h.calls.length).toBe(0);
     kb.destroy();
   });
+
+  it('respects an explicit tabindex="-1" (programmatic focus only)', () => {
+    const el = document.createElement('div');
+    el.setAttribute('tabindex', '-1');
+    document.body.appendChild(el);
+    const kb = new KeyboardHandler(el, makeTransform(), makeHelper(), {});
+    kb.enable();
+    expect(el.getAttribute('tabindex')).toBe('-1'); // fails before fix: bumped to 0
+    kb.destroy();
+  });
+
+  it('destroy() removes the keydown listener', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = makeHelper();
+    const kb = new KeyboardHandler(el, makeTransform(), h, {});
+    kb.enable();
+    kb.destroy();
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    expect(h.calls.length).toBe(0);
+  });
 });

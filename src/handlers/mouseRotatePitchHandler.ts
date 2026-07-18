@@ -45,6 +45,7 @@ export class MouseRotatePitchHandler {
       yieldToBoxZoomShift: false,
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {

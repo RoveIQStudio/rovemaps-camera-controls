@@ -29,6 +29,7 @@ export class BoxZoomHandler {
       onChange: () => {},
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {

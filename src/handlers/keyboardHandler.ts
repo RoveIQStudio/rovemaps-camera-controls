@@ -39,12 +39,17 @@ export class KeyboardHandler {
       onChange: () => {},
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {
     if (typeof window === 'undefined' || this.unbind) return;
     // Scope to the map element (MapLibre-style): keys act only when the map has focus.
-    if (this.el.tabIndex < 0) this.el.tabIndex = 0;
+    // Respect an app author's deliberate tabindex="-1" (programmatic focus only), matching
+    // MapLibre: only assign a tabindex when none is present.
+    if (typeof (this.el as any).hasAttribute === 'function' ? !this.el.hasAttribute('tabindex') : this.el.tabIndex < 0) {
+      this.el.tabIndex = 0;
+    }
     const off = on(this.el, 'keydown', this.onKey as any, { passive: !this.opts.preventDefault });
     this.unbind = () => off();
   }

@@ -67,6 +67,7 @@ export class MousePanHandler {
     };
     if (opts && 'inertiaPanFriction' in opts && opts.inertiaPanFriction == null) delete merged.inertiaPanFriction;
     if (opts && 'rubberbandStrength' in opts && opts.rubberbandStrength == null) delete merged.rubberbandStrength;
+    if ((merged as any).onChange == null) (merged as any).onChange = () => {};
     this.opts = merged as Required<MousePanOptions>;
   }
 

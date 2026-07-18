@@ -49,6 +49,7 @@ export class ScrollZoomHandler {
       zoomInertia: false,
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {

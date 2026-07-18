@@ -27,6 +27,7 @@ export class SafariGestureHandler {
   constructor(el: HTMLElement, transform: ITransform, helper: ICameraHelper, opts?: SafariGestureOptions) {
     this.el = el; this.transform = transform; this.helper = helper;
     this.opts = { enabled: false, around: 'pointer', onChange: () => {}, rotateSign: 1, zoomSign: 1, anchorTightness: 1, ...(opts || {}) };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   enable() {

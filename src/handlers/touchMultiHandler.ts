@@ -121,6 +121,7 @@ export class TouchMultiHandler {
       showDebugOverlay: false,
       ...opts,
     };
+    if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
   }
 
   // Enable/disable on-screen debug overlay at runtime
