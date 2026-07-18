@@ -616,6 +616,8 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     private _axisStart;
     private _axisEmitDuring;
     private _axisEnd;
+    /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
+    private _cancelActiveAnimation;
     /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
     private _interruptActiveAnimation;
     private _endAllAxes;

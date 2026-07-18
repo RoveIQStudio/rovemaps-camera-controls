@@ -773,14 +773,14 @@ var MousePanHandler = class {
     this.onDown = (e) => {
       var _a, _b, _c, _d, _e, _f, _g, _h;
       if (e.pointerType !== "mouse") return;
-      if (e.button !== this.opts.button) return;
-      if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
       if (this.inertiaHandle != null) {
         cancelAnimationFrame(this.inertiaHandle);
         this.inertiaHandle = null;
       }
       this.vx = this.vy = this.instVx = this.instVy = 0;
       this.gvx = this.gvz = this.igvx = this.igvz = 0;
+      if (e.button !== this.opts.button) return;
+      if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
       (_b = (_a = this.el).setPointerCapture) == null ? void 0 : _b.call(_a, e.pointerId);
       this.dragging = false;
       this.startX = this.lastX = e.clientX;
@@ -2540,9 +2540,11 @@ var CameraController = class extends Evented {
     target.bearing = start.bearing + shortestAngleDelta(start.bearing, target.bearing);
     target.roll = start.roll + shortestAngleDelta(start.roll, target.roll);
     if (!essential && browser.reducedMotion()) {
+      this._cancelActiveAnimation();
       return this.jumpTo(target);
     }
     if (!animate) {
+      this._cancelActiveAnimation();
       return this.jumpTo(target);
     }
     const duration = Math.max(0, (_f = options.duration) != null ? _f : 300);
@@ -3117,6 +3119,19 @@ var CameraController = class extends Evented {
       this._dragging = false;
       this._fire("dragend", { originalEvent });
     }
+  }
+  /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
+  _cancelActiveAnimation() {
+    if (!this._activeAnimation) return;
+    if (this._easeAbort) this._easeAbort.abort();
+    this._animGeneration++;
+    if (this._animHandle != null) {
+      caf(this._animHandle);
+      this._animHandle = null;
+    }
+    this._axisEnd(this._activeAnimation.axes);
+    this._activeAnimation = null;
+    this._endMoveLifecycle();
   }
   /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
   _interruptActiveAnimation(newAxes) {
