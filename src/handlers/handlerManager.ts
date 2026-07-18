@@ -57,7 +57,6 @@ export class HandlerManager {
     if (options?.suppressContextMenu ?? true) {
       this.onCtx = (e: Event) => e.preventDefault();
       this.el.addEventListener('contextmenu', this.onCtx, { capture: true } as any);
-      window.addEventListener('contextmenu', this.onCtx as any, { capture: true } as any);
     }
 
     const scrollOpts = options?.scrollZoom;
@@ -182,7 +181,6 @@ export class HandlerManager {
   dispose() {
     if (this.onCtx) {
       this.el.removeEventListener('contextmenu', this.onCtx as any, { capture: true } as any);
-      window.removeEventListener('contextmenu', this.onCtx as any, { capture: true } as any);
       this.onCtx = undefined;
     }
     this.scroll?.destroy();
