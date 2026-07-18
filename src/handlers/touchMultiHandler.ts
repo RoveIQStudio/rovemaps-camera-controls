@@ -163,6 +163,9 @@ export class TouchMultiHandler {
     }
     this.bindMoveUp();
     if (e.touches.length === 1) {
+      // A new touch must stop any in-flight glide (2-finger startGesture already does this)
+      if (this.inertiaHandle != null) { cancelAnimationFrame(this.inertiaHandle); this.inertiaHandle = null; }
+      this.vpx = 0; this.vpy = 0; this.gvx = 0; this.gvz = 0;
       // Single-finger pan: initialize ground anchor at finger
       this.firstTouchDownTs = performance.now();
       const t = e.touches.item(0)!;

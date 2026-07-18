@@ -87,6 +87,10 @@ export class MousePanHandler {
     // Only handle real mouse, ignore touch/pen to avoid double-handling on touch devices
     if (e.pointerType !== 'mouse') return;
     if (e.button !== this.opts.button) return;
+    // A new grab must stop any in-flight glide immediately
+    if (this.inertiaHandle != null) { cancelAnimationFrame(this.inertiaHandle); this.inertiaHandle = null; }
+    this.vx = this.vy = this.instVx = this.instVy = 0;
+    this.gvx = this.gvz = this.igvx = this.igvz = 0;
     this.el.setPointerCapture?.(e.pointerId);
     this.dragging = false;
     this.startX = this.lastX = e.clientX;
@@ -104,10 +108,13 @@ export class MousePanHandler {
     }
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
-    this.unbindMoveUp = () => { offMove(); offUp(); };
+    const offCancel = on(window, 'pointercancel', this.cancelDrag as any, { passive: true });
+    const offBlur = on(window, 'blur', this.cancelDrag as any, { passive: true });
+    this.unbindMoveUp = () => { offMove(); offUp(); offCancel(); offBlur(); };
   };
 
   private onMove = (e: PointerEvent) => {
+    if (typeof e.buttons === 'number' && e.buttons === 0) { this.cancelDrag(); return; }
     const dx = (e.clientX - this.lastX) * (this.opts.panXSign ?? 1);
     const dy = (e.clientY - this.lastY) * (this.opts.panYSign ?? 1);
     const dt = (performance.now() - this.lastTs) / 1000;
@@ -200,6 +207,17 @@ export class MousePanHandler {
     // Start inertia
     if (this.inertiaHandle != null) cancelAnimationFrame(this.inertiaHandle);
     this.inertiaHandle = requestAnimationFrame(() => this.runInertia());
+  };
+
+  /** Hard-stop the gesture without starting inertia (pointercancel, window blur, missed pointerup). */
+  private cancelDrag = () => {
+    this.unbindMoveUp?.();
+    this.unbindMoveUp = null;
+    this.dragging = false;
+    this.rectCache = null;
+    this.lastGround = null;
+    this.vx = this.vy = this.instVx = this.instVy = 0;
+    this.gvx = this.gvz = this.igvx = this.igvz = 0;
   };
 
   private runInertia() {

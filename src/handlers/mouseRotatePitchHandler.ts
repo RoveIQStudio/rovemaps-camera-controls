@@ -74,11 +74,21 @@ export class MouseRotatePitchHandler {
     }
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
-    this.unbindMoveUp = () => { offMove(); offUp(); };
+    const offCancel = on(window, 'pointercancel', this.cancelDrag as any, { passive: true });
+    const offBlur = on(window, 'blur', this.cancelDrag as any, { passive: true });
+    this.unbindMoveUp = () => { offMove(); offUp(); offCancel(); offBlur(); };
+  };
+
+  private cancelDrag = () => {
+    this.unbindMoveUp?.();
+    this.unbindMoveUp = null;
+    this.dragging = false;
+    this.rectCache = null;
   };
 
   private onMove = (e: PointerEvent) => {
     if (!this.dragging) return;
+    if (typeof e.buttons === 'number' && e.buttons === 0) { this.cancelDrag(); return; }
     const dx = e.clientX - this.lastX;
     const dy = e.clientY - this.lastY;
     this.lastX = e.clientX;

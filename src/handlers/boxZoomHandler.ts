@@ -50,11 +50,14 @@ export class BoxZoomHandler {
     this.curPt = { ...this.startPt };
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
-    this.unbindMoveUp = () => { offMove(); offUp(); };
+    const offCancel = on(window, 'pointercancel', (() => this.cleanup()) as any, { passive: true });
+    const offBlur = on(window, 'blur', (() => this.cleanup()) as any, { passive: true });
+    this.unbindMoveUp = () => { offMove(); offUp(); offCancel(); offBlur(); };
   };
 
   private onMove = (e: PointerEvent) => {
     if (!this.startPt) return;
+    if (typeof e.buttons === 'number' && e.buttons === 0) { this.cleanup(); return; }
     if (this.opts.preventDefault) e.preventDefault();
     const rect = this.el.getBoundingClientRect();
     this.curPt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
