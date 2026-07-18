@@ -87,9 +87,11 @@ export class PlanarCameraHelper implements ICameraHelper {
       transform.setRoll(saved.roll);
       transform.setZoom(z);
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const up = (transform as any).upAxis === 'z' ? 'z' : 'y';
       for (const c of worldCorners) {
-        const sp = transform.worldToScreen({ x: (c as any).x, y: 0, z: (c as any).y } as any) || transform.worldToScreen({ x: c.x, y: saved.center.z ?? 0, z: c.y } as any);
-        // Fallback maps planar (x,y)→(x,z)
+        const sp = up === 'z'
+          ? transform.worldToScreen({ x: c.x, y: c.y, z: 0 } as any)
+          : transform.worldToScreen({ x: c.x, y: 0, z: c.y } as any);
         const p = sp ?? { x: 0, y: 0 };
         if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
         if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;

@@ -74,6 +74,7 @@ export class ThreePlanarTransform implements ITransform {
   get center() { return this._center; }
   get zoom() { return this._zoom; }
   get scale() { return this._scale; } // cached scale for performance
+  get upAxis(): 'y' | 'z' { return this._upAxis; }
   get bearing() { return this._bearing; }
   get bearingRad() { return this._bearingRad; } // cached bearing in radians
   get bearingCos() { return this._bearingCos; } // cached cos(bearing)
