@@ -26,6 +26,7 @@ export class MousePanHandler {
   private opts: Required<MousePanOptions>;
   private unbindDown: (() => void) | null = null;
   private unbindMoveUp: (() => void) | null = null;
+  private activePointerId: number | null = null;
   private dragging = false;
   private startX = 0;
   private startY = 0;
@@ -114,6 +115,7 @@ export class MousePanHandler {
       (this.transform as any).setGroundCenter?.(gp);
       this.opts.onChange({ axes: { pan: true }, originalEvent: e });
     }
+    this.activePointerId = e.pointerId;
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
     const offCancel = on(window, 'pointercancel', this.cancelDrag as any, { passive: true });
@@ -122,6 +124,7 @@ export class MousePanHandler {
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     if (typeof e.buttons === 'number' && e.buttons === 0) { this.cancelDrag(); return; }
     const dx = (e.clientX - this.lastX) * (this.opts.panXSign ?? 1);
     const dy = (e.clientY - this.lastY) * (this.opts.panYSign ?? 1);
@@ -203,9 +206,11 @@ export class MousePanHandler {
     }
   };
 
-  private onUp = (_e: PointerEvent) => {
+  private onUp = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     this.unbindMoveUp?.();
     this.unbindMoveUp = null;
+    this.activePointerId = null;
     if (!this.dragging) return;
     this.dragging = false;
     // Directional clamp in ground space: prevent backslide
@@ -221,6 +226,7 @@ export class MousePanHandler {
   private cancelDrag = () => {
     this.unbindMoveUp?.();
     this.unbindMoveUp = null;
+    this.activePointerId = null;
     this.dragging = false;
     this.rectCache = null;
     this.lastGround = null;

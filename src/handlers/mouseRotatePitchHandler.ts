@@ -23,6 +23,7 @@ export class MouseRotatePitchHandler {
   private opts: Required<MouseRotatePitchOptions>;
   private unbindDown: (() => void) | null = null;
   private unbindMoveUp: (() => void) | null = null;
+  private activePointerId: number | null = null;
   private dragging = false;
   private lastX = 0;
   private lastY = 0;
@@ -77,6 +78,7 @@ export class MouseRotatePitchHandler {
       const gp = (this.transform as any).groundFromScreen?.(pointer) ?? null;
       if (gp) (this.transform as any).setGroundCenter?.(gp);
     }
+    this.activePointerId = e.pointerId;
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
     const offCancel = on(window, 'pointercancel', this.cancelDrag as any, { passive: true });
@@ -87,11 +89,13 @@ export class MouseRotatePitchHandler {
   private cancelDrag = () => {
     this.unbindMoveUp?.();
     this.unbindMoveUp = null;
+    this.activePointerId = null;
     this.dragging = false;
     this.rectCache = null;
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     if (!this.dragging) return;
     if (typeof e.buttons === 'number' && e.buttons === 0) { this.cancelDrag(); return; }
     const dx = e.clientX - this.lastX;
@@ -126,11 +130,13 @@ export class MouseRotatePitchHandler {
     this.opts.onChange({ axes: { rotate: db !== 0, pitch: dp !== 0 }, originalEvent: e });
   };
 
-  private onUp = (_e: PointerEvent) => {
+  private onUp = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     if (!this.dragging) return;
     this.dragging = false;
     this.unbindMoveUp?.();
     this.unbindMoveUp = null;
+    this.activePointerId = null;
     this.rectCache = null;
   };
 }

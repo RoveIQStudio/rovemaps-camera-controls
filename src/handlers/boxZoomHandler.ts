@@ -17,6 +17,7 @@ export class BoxZoomHandler {
   private opts: Required<BoxZoomOptions>;
   private unbindDown: (() => void) | null = null;
   private unbindMoveUp: (() => void) | null = null;
+  private activePointerId: number | null = null;
   private startPt: Vec2 | null = null;
   private curPt: Vec2 | null = null;
 
@@ -49,6 +50,7 @@ export class BoxZoomHandler {
     const rect = this.el.getBoundingClientRect();
     this.startPt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     this.curPt = { ...this.startPt };
+    this.activePointerId = e.pointerId;
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
     const offCancel = on(window, 'pointercancel', (() => this.cleanup()) as any, { passive: true });
@@ -57,6 +59,7 @@ export class BoxZoomHandler {
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     if (!this.startPt) return;
     if (typeof e.buttons === 'number' && e.buttons === 0) { this.cleanup(); return; }
     if (this.opts.preventDefault) e.preventDefault();
@@ -64,7 +67,8 @@ export class BoxZoomHandler {
     this.curPt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  private onUp = (_e: PointerEvent) => {
+  private onUp = (e: PointerEvent) => {
+    if (this.activePointerId != null && e.pointerId !== this.activePointerId) return;
     if (!this.startPt || !this.curPt) return this.cleanup();
     const minX = Math.min(this.startPt.x, this.curPt.x);
     const minY = Math.min(this.startPt.y, this.curPt.y);
@@ -102,6 +106,7 @@ export class BoxZoomHandler {
 
   private cleanup() {
     this.startPt = null; this.curPt = null;
+    this.activePointerId = null;
     if (this.unbindMoveUp) { this.unbindMoveUp(); this.unbindMoveUp = null; }
   }
 }

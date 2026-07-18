@@ -106,4 +106,20 @@ describe('mouse pan drag safety', () => {
     expect(t.center.y).toBe(cy);
     h.destroy();
   });
+
+  it('a different pointer\'s buttonless hover does not cancel an active mouse drag', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const t = makeTransform();
+    const h = new MousePanHandler(el, t, makeHelper(), {});
+    h.enable();
+    el.dispatchEvent(pev('pointerdown', { pointerId: 1, button: 0, buttons: 1, clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { pointerId: 1, buttons: 1, clientX: 130, clientY: 130 }));
+    const n = t.adjustCalls;
+    // pen hover: different pointerId, buttons 0 — must be ignored, not treated as a cancel
+    window.dispatchEvent(pev('pointermove', { pointerId: 7, buttons: 0, clientX: 500, clientY: 500 }));
+    window.dispatchEvent(pev('pointermove', { pointerId: 1, buttons: 1, clientX: 160, clientY: 160 }));
+    expect(t.adjustCalls).toBeGreaterThan(n); // fails before fix: pen hover cancelled the drag
+    h.destroy();
+  });
 });
