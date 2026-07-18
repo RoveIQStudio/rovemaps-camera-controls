@@ -249,6 +249,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
       this._moveEndTimer = null;
     }
     this._endAllAxes();
+    this._endMoveLifecycle();
   }
 
   // Internal fire method that respects event suppression

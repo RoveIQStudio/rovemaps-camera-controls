@@ -36,4 +36,18 @@ describe('jumpTo vs in-flight animation', () => {
     expect(ctl.getZoom()).toBe(2); // fails before fix: 5
     ctl.dispose();
   });
+
+  it('dispose mid-animation fires the final moveend', () => {
+    let fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController();
+    const events: string[] = [];
+    ctl.on('moveend', () => events.push('moveend'));
+    ctl.easeTo({ zoom: 5, duration: 100 });
+    fakeNow = 50;
+    ctl.update();
+    ctl.dispose();
+    expect(events).toEqual(['moveend']); // fails before fix: []
+    expect(ctl.isMoving()).toBe(false);
+  });
 });
