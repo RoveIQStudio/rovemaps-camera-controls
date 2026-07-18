@@ -36,6 +36,11 @@ new HandlerManager(el, transform, helper, {
 ### Keyboard
 - Arrow pan, +/- zoom, Q/E rotate, PageUp/Down pitch
 
+Keyboard input is scoped to the map element: the element is given `tabindex="0"` if it
+is not already focusable, and arrow/zoom/rotate keys act only while the map has focus
+(click the map or Tab to it). This prevents a map from hijacking page scrolling and
+lets multiple maps coexist on one page.
+
 ### Dblclick / Double-tap, Box Zoom
 - Dblclick/tap zoom around pointer; Shift invert
 - Box zoom with Shift + drag; fit bounds via projection-based solver

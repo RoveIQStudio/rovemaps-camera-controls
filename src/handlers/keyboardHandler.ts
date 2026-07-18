@@ -43,7 +43,9 @@ export class KeyboardHandler {
 
   enable() {
     if (typeof window === 'undefined' || this.unbind) return;
-    const off = on(window, 'keydown', this.onKey as any, { passive: !this.opts.preventDefault });
+    // Scope to the map element (MapLibre-style): keys act only when the map has focus.
+    if (this.el.tabIndex < 0) this.el.tabIndex = 0;
+    const off = on(this.el, 'keydown', this.onKey as any, { passive: !this.opts.preventDefault });
     this.unbind = () => off();
   }
 
