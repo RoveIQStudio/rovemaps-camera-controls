@@ -55,4 +55,13 @@ describe('around-point anchoring on the real transform', () => {
     const sp = screenOf(t, before);
     expect(Math.hypot(sp.x - P.x, sp.y - P.y)).toBeLessThan(1.5);
   });
+
+  it('holds the ground point under the cursor across a pitch change', () => {
+    const t = makeTransform();
+    const before = t.groundFromScreen(P)!;
+    t.setPitch(t.pitch + 20);
+    anchor(t, P, before);
+    const sp = screenOf(t, before);
+    expect(Math.hypot(sp.x - P.x, sp.y - P.y)).toBeLessThan(1.5);
+  });
 });

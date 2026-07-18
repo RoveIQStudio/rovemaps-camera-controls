@@ -1,6 +1,6 @@
 import type { ICameraHelper, EaseOptions, FlyToOptions, CameraForBoundsOptions } from './icameraHelper';
 import type { ITransform, Padding } from '../transform/interfaces';
-import { clamp, normalizeAngleDeg } from '../util/math';
+import { normalizeAngleDeg } from '../util/math';
 
 export class PlanarCameraHelper implements ICameraHelper {
   handleMapControlsPan(transform: ITransform, dx: number, dy: number): void {
@@ -29,7 +29,8 @@ export class PlanarCameraHelper implements ICameraHelper {
   ): void {
     transform.deferApply(() => {
       transform.setRoll(normalizeAngleDeg(transform.roll + dRoll));
-      transform.setPitch(clamp(transform.pitch + dPitch, 0, 85));
+      // setPitch clamps to the transform's configured minPitch/maxPitch
+      transform.setPitch(transform.pitch + dPitch);
       transform.setBearing(normalizeAngleDeg(transform.bearing + dBearing));
       transform.setZoom(transform.zoom + dZoom);
     });
