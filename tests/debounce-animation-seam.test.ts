@@ -130,4 +130,28 @@ describe('external-gesture debounce vs programmatic animation', () => {
     expect(ctl.isRotating()).toBe(false); // fails before fix: stuck true
     ctl.dispose();
   });
+
+  it('a reduced-motion flyTo delegate forwards the absorbed gesture burst to easeTo', () => {
+    vi.useFakeTimers();
+    const fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    vi.spyOn(browser, 'reducedMotion').mockReturnValue(true);
+    const ctl = makeController();
+    const events: string[] = [];
+    (['zoomend', 'moveend'] as const).forEach((t) => ctl.on(t, () => events.push(t)));
+
+    (ctl as any)._externalChange({ axes: { zoom: true } }); // wheel-ish burst
+    // Non-degenerate flyTo (real pan) under reduced motion -> delegates to easeTo({ animate: false }).
+    ctl.flyTo({ center: { x: 50, y: 25 }, zoom: 4 });
+
+    // The delegated easeTo must end the absorbed zoom burst (no leak).
+    expect(events).toContain('zoomend');  // fails before fix: burst axis leaks, no zoomend
+    expect(events).toContain('moveend');  // fails before fix: move lifecycle never closes
+    expect(ctl.isZooming()).toBe(false);  // fails before fix: stuck true
+    expect(ctl.isMoving()).toBe(false);   // fails before fix: stuck true
+    // And the camera landed on the fully-resolved target.
+    expect(ctl.getCenter().x).toBe(50);
+    expect(ctl.getZoom()).toBe(4);
+    ctl.dispose();
+  });
 });

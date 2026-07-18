@@ -453,8 +453,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (pendingEnd.rotate) this._applyBearingSnap();
     // Reduced motion: resolve the full target and jump (easeTo's !animate path
     // also cancels any in-flight animation).
-    if (!((options as any).essential ?? false) && browser.reducedMotion()) {
-      return this.easeTo({ ...options, animate: false } as any);
+    if (!(options.essential ?? false) && browser.reducedMotion()) {
+      // Hand the absorbed burst to the delegated easeTo (its top-of-method absorb re-collects it)
+      this._pendingExternalAxes = pendingEnd;
+      return this.easeTo({ ...options, animate: false });
     }
     const startCenter = this.getCenter();
     const endCenter = options.center ?? startCenter;

@@ -25,6 +25,6 @@ describe('interactive pitch vs transform constraints', () => {
     const t = makeTransform(20, 85);
     t.setPitch(25);
     helper.handleMapControlsRollPitchBearingZoom(t as any, 0, -10, 0, 0);
-    expect(t.pitch).toBe(20); // fails before fix: helper clamps to 15... then transform to 20 — verify actual pre-fix value and keep this post-fix assertion
+    expect(t.pitch).toBe(20); // regression guard: helper no longer undercuts a configured minPitch floor
   });
 });
