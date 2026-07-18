@@ -122,4 +122,25 @@ describe('mouse pan drag safety', () => {
     expect(t.adjustCalls).toBeGreaterThan(n); // fails before fix: pen hover cancelled the drag
     h.destroy();
   });
+
+  it('a foreign pointer\'s pointercancel does not cancel an active mouse drag; the owner\'s does', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const t = makeTransform();
+    const h = new MousePanHandler(el, t, makeHelper(), {});
+    h.enable();
+    el.dispatchEvent(pev('pointerdown', { pointerId: 1, button: 0, buttons: 1, clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { pointerId: 1, buttons: 1, clientX: 130, clientY: 130 }));
+    const n = t.adjustCalls;
+    // palm-rejected touch: foreign pointerId cancel — must not tear down the mouse drag
+    window.dispatchEvent(pev('pointercancel', { pointerId: 7 }));
+    window.dispatchEvent(pev('pointermove', { pointerId: 1, buttons: 1, clientX: 160, clientY: 160 }));
+    expect(t.adjustCalls).toBeGreaterThan(n); // fails before fix: foreign cancel killed the drag
+    // the owning pointer's cancel still ends the drag
+    const m = t.adjustCalls;
+    window.dispatchEvent(pev('pointercancel', { pointerId: 1 }));
+    window.dispatchEvent(pev('pointermove', { pointerId: 1, buttons: 1, clientX: 190, clientY: 190 }));
+    expect(t.adjustCalls).toBe(m);
+    h.destroy();
+  });
 });

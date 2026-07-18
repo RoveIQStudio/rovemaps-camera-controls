@@ -118,7 +118,10 @@ export class MousePanHandler {
     this.activePointerId = e.pointerId;
     const offMove = on(window, 'pointermove', this.onMove as any, { passive: false });
     const offUp = on(window, 'pointerup', this.onUp as any, { passive: true });
-    const offCancel = on(window, 'pointercancel', this.cancelDrag as any, { passive: true });
+    const offCancel = on(window, 'pointercancel', ((ev: PointerEvent) => {
+      if (this.activePointerId != null && ev.pointerId !== this.activePointerId) return;
+      this.cancelDrag();
+    }) as any, { passive: true });
     const offBlur = on(window, 'blur', this.cancelDrag as any, { passive: true });
     this.unbindMoveUp = () => { offMove(); offUp(); offCancel(); offBlur(); };
   };
