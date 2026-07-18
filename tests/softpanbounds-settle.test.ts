@@ -30,7 +30,7 @@ describe('softPanBounds settle', () => {
     // drive the settle to completion
     for (let t = 160; t <= 500; t += 16) { fakeNow = t; flushFrames(fakeNow); }
     expect(ctl.getCenter().x).toBeLessThanOrEqual(10.001); // settled inside bounds
-    // Clean pairs: movestart,moveend (outer), movestart,moveend (settle) — fails before fix (settle moveend swallowed)
+    // Clean pairs: movestart,moveend (outer), movestart,moveend (settle) — pre-fix the settle was clobbered entirely (camera stranded, sequence ['movestart','moveend'])
     expect(events).toEqual(['movestart', 'moveend', 'movestart', 'moveend']);
     ctl.dispose();
   });
@@ -45,7 +45,7 @@ describe('softPanBounds settle', () => {
     const cx = ctl.getCenter().x;
     ctl.dispose();
     for (let t = 180; t <= 400; t += 16) { fakeNow = t; flushFrames(fakeNow); }
-    expect(ctl.getCenter().x).toBe(cx); // fails before fix: orphaned settle keeps moving the camera
+    expect(ctl.getCenter().x).toBe(cx); // regression guard: dispose cancels the settle (passed pre-fix via the generation bump)
   });
 
   it('a second out-of-bounds movement during a prior settle still settles (no stranding)', () => {

@@ -14,6 +14,7 @@ export default defineConfig({
       { text: 'Handlers', link: '/Handlers' },
       { text: 'SSR & Next', link: '/SSR-Next' },
       { text: 'Examples', link: '/Examples' },
+      { text: 'Behavior Changes', link: '/Behavior-Changes' },
       { text: 'Demo', link: '/demo/' },
     ],
     sidebar: [
@@ -23,6 +24,7 @@ export default defineConfig({
       { text: 'Handlers', link: '/Handlers' },
       { text: 'SSR & Next.js', link: '/SSR-Next' },
       { text: 'Examples', link: '/Examples' },
+      { text: 'Behavior Changes', link: '/Behavior-Changes' },
     ],
     footer: { message: 'MIT Licensed' }
   }

@@ -11,6 +11,8 @@ docs/.vitepress/cache/
 
 # Project-specific
 maplibre_camera_controls/
+.npm-cache/
+.DS_Store
 
 # Internal agent-workflow artifacts (plans, ledgers, review packages)
 .superpowers/

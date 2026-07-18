@@ -42,14 +42,8 @@ var Evented = class {
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
 function mod(n, m) {
   return (n % m + m) % m;
-}
-function degToRad(d) {
-  return d * Math.PI / 180;
 }
 function radToDeg(r) {
   return r * 180 / Math.PI;
@@ -1015,7 +1009,7 @@ var MouseRotatePitchHandler = class {
       if (e.pointerType !== "mouse") return;
       if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
       const isRotateBtn = e.button === this.opts.rotateButton;
-      const wantsPitch = this.opts.pitchModifier === "shift" && e.shiftKey || this.opts.pitchModifier === "alt" && (e.altKey || e.metaKey);
+      const wantsPitch = e.button === 0 && (this.opts.pitchModifier === "shift" && e.shiftKey || this.opts.pitchModifier === "alt" && (e.altKey || e.metaKey));
       if (!isRotateBtn && !wantsPitch) return;
       (_b = (_a = this.el).setPointerCapture) == null ? void 0 : _b.call(_a, e.pointerId);
       this.dragging = true;
@@ -2368,8 +2362,6 @@ var CameraController = class extends Evented {
     this._rolling = false;
     this._dragging = false;
     this._constraints = { minZoom: -Infinity, maxZoom: Infinity, minPitch: 0, maxPitch: 85 };
-    this._softClamping = false;
-    this._softClampTimer = null;
     this._suppressEvents = false;
     this._isInternalUpdate = false;
     this._useExternalLoop = false;
@@ -2436,7 +2428,7 @@ var CameraController = class extends Evented {
     }
   }
   dispose() {
-    var _a, _b, _c;
+    var _a, _b;
     this._animGeneration++;
     if (this._animHandle != null) {
       caf(this._animHandle);
@@ -2453,12 +2445,8 @@ var CameraController = class extends Evented {
       (_b = globalThis.clearTimeout) == null ? void 0 : _b.call(globalThis, this._moveEndTimer);
       this._moveEndTimer = null;
     }
-    if (this._softClampTimer != null) {
-      (_c = globalThis.clearTimeout) == null ? void 0 : _c.call(globalThis, this._softClampTimer);
-      this._softClampTimer = null;
-      this._softClamping = false;
-    }
     this._endAllAxes();
+    this._endMoveLifecycle();
   }
   // Internal fire method that respects event suppression
   _fire(type, data) {
@@ -2545,6 +2533,7 @@ var CameraController = class extends Evented {
     return this;
   }
   jumpTo(options, methodOpts) {
+    this._cancelActiveAnimation();
     const wasSuppressed = this._isInternalUpdate;
     if (methodOpts == null ? void 0 : methodOpts.silent) this._isInternalUpdate = true;
     if (options.center) this.transform.setCenter(options.center);
@@ -3311,8 +3300,7 @@ var CameraController = class extends Evented {
     }
   }
   _applySoftPanBounds() {
-    var _a, _b;
-    if (!this._softPanBoundsEnabled || this._softClamping) return;
+    if (!this._softPanBoundsEnabled) return;
     const bounds = this._constraints.panBounds;
     if (!bounds) return;
     const c = this.getCenter();
@@ -3322,13 +3310,7 @@ var CameraController = class extends Evented {
       z: c.z
     };
     if (clamped.x !== c.x || clamped.y !== c.y) {
-      this._softClamping = true;
       this.easeTo({ center: clamped, duration: 180, easing: defaultEasing, essential: true });
-      if (this._softClampTimer != null) (_a = globalThis.clearTimeout) == null ? void 0 : _a.call(globalThis, this._softClampTimer);
-      this._softClampTimer = (_b = globalThis.setTimeout) == null ? void 0 : _b.call(globalThis, () => {
-        this._softClamping = false;
-        this._softClampTimer = null;
-      }, 220);
     }
   }
 };
@@ -3417,23 +3399,12 @@ function createControllerForNext(options) {
 exports.CameraController = CameraController;
 exports.Evented = Evented;
 exports.TILE_SIZE = TILE_SIZE;
-exports.browser = browser;
-exports.caf = caf;
-exports.clamp = clamp;
 exports.createController = createController;
 exports.createControllerForNext = createControllerForNext;
 exports.cubicBezier = cubicBezier;
 exports.defaultEasing = defaultEasing;
-exports.degToRad = degToRad;
 exports.isSSRStub = isSSRStub;
-exports.lerp = lerp;
-exports.mod = mod;
 exports.normalizeAngleDeg = normalizeAngleDeg;
-exports.off = off;
-exports.on = on;
-exports.radToDeg = radToDeg;
-exports.raf = raf;
-exports.rubberbandDamp = rubberbandDamp;
 exports.scaleZoom = scaleZoom;
 exports.shortestAngleDelta = shortestAngleDelta;
 exports.worldSizeForZoom = worldSizeForZoom;

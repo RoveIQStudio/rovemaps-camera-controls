@@ -436,8 +436,6 @@ declare class CameraController extends Evented<CameraMoveEvents> {
     private _rolling;
     private _dragging;
     private _constraints;
-    private _softClamping;
-    private _softClampTimer;
     private _suppressEvents;
     private _isInternalUpdate;
     private _resizeObserver?;
@@ -637,30 +635,13 @@ type SSRControllerStub = CameraController & {
 declare function isSSRStub(c: CameraController): c is SSRControllerStub;
 declare function createControllerForNext(options: ControllerOptions | (() => ControllerOptions)): CameraController;
 
-declare function clamp(v: number, min: number, max: number): number;
-declare function lerp(a: number, b: number, t: number): number;
-declare function mod(n: number, m: number): number;
-declare function degToRad(d: number): number;
-declare function radToDeg(r: number): number;
 declare function normalizeAngleDeg(a: number): number;
 declare function zoomScale(zoomDelta: number): number;
 declare function scaleZoom(scale: number): number;
 declare function shortestAngleDelta(from: number, to: number): number;
-declare function rubberbandDamp(overshoot: number, strength: number): number;
 
 type Easing = (t: number) => number;
 declare const defaultEasing: Easing;
 declare function cubicBezier(p1x: number, p1y: number, p2x: number, p2y: number): Easing;
 
-declare const browser: {
-    now: () => number;
-    reducedMotion: () => boolean;
-};
-declare function raf(callback: FrameRequestCallback): number;
-declare function caf(handle: number): void;
-
-type ListenerOptions = boolean | AddEventListenerOptions;
-declare function on<K extends keyof HTMLElementEventMap>(el: HTMLElement | Window | Document, type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: ListenerOptions): () => void;
-declare function off<K extends keyof HTMLElementEventMap>(el: HTMLElement | Window | Document, type: K, listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any, options?: ListenerOptions): void;
-
-export { type Bounds2D, type BoxZoomOptions, CameraController, type CameraControllerOptions, type CameraForBoundsOptions, type CameraMoveEvents, type Center, type ControllerOptions, type DblclickOptions, type EaseOptions, type Easing, Evented, type FlyToOptions, type GroundIntersectionFn, type GroundPoint, type HandlerAxes, type HandlerDelta, type HandlerManagerOptions, type ICameraHelper, type IReadonlyTransform, type ITransform, type KeyboardOptions, type Listener, type ListenerOptions, type MethodOptions, type MousePanOptions, type MouseRotatePitchOptions, type Padding, type Projection, type ProjectionAdapter, type SSRControllerStub, type SafariGestureOptions, type ScrollZoomOptions, TILE_SIZE, type ThreePlanarTransformOptions, type TouchMultiOptions, type TransformConstraints, type Vec2, type ZoomMode, browser, caf, clamp, createController, createControllerForNext, cubicBezier, defaultEasing, degToRad, isSSRStub, lerp, mod, normalizeAngleDeg, off, on, radToDeg, raf, rubberbandDamp, scaleZoom, shortestAngleDelta, worldSizeForZoom, zoomScale };
+export { type Bounds2D, type BoxZoomOptions, CameraController, type CameraControllerOptions, type CameraForBoundsOptions, type CameraMoveEvents, type Center, type ControllerOptions, type DblclickOptions, type EaseOptions, type Easing, Evented, type FlyToOptions, type GroundIntersectionFn, type GroundPoint, type HandlerAxes, type HandlerDelta, type HandlerManagerOptions, type ICameraHelper, type IReadonlyTransform, type ITransform, type KeyboardOptions, type Listener, type MethodOptions, type MousePanOptions, type MouseRotatePitchOptions, type Padding, type Projection, type ProjectionAdapter, type SSRControllerStub, type SafariGestureOptions, type ScrollZoomOptions, TILE_SIZE, type ThreePlanarTransformOptions, type TouchMultiOptions, type TransformConstraints, type Vec2, type ZoomMode, createController, createControllerForNext, cubicBezier, defaultEasing, isSSRStub, normalizeAngleDeg, scaleZoom, shortestAngleDelta, worldSizeForZoom, zoomScale };

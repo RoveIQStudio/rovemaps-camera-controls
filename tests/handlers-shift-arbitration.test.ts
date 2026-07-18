@@ -59,7 +59,8 @@ describe('shift+left-drag arbitration', () => {
     expect(t.adjustCalls).toBe(0); // pan yielded shift+left to the active shift-pitch gesture
     const rpbz = helper.calls.find((c: unknown[]) => c[0] === 'rpbz');
     expect(rpbz).toBeDefined(); // pitch ran on shift+left
-    expect(rpbz && (rpbz[2] as number)).not.toBe(0); // nonzero pitch delta
+    expect(typeof rpbz![2]).toBe('number');
+    expect(rpbz![2]).not.toBe(0); // nonzero pitch delta
     mgr.dispose();
   });
 
