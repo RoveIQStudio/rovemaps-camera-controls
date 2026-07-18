@@ -1,6 +1,6 @@
 import type { ICameraHelper, EaseOptions, FlyToOptions, CameraForBoundsOptions } from './icameraHelper';
 import type { ITransform, Padding } from '../transform/interfaces';
-import { clamp, lerp, normalizeAngleDeg } from '../util/math';
+import { clamp, normalizeAngleDeg } from '../util/math';
 
 export class PlanarCameraHelper implements ICameraHelper {
   handleMapControlsPan(transform: ITransform, dx: number, dy: number): void {

@@ -1,4 +1,4 @@
-import type { Camera, PerspectiveCamera, OrthographicCamera, Vector3 } from 'three';
+import type { PerspectiveCamera, OrthographicCamera, Vector3 } from 'three';
 
 export type Padding = { top: number; right: number; bottom: number; left: number };
 

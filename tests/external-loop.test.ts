@@ -288,7 +288,7 @@ describe('External Animation Loop', () => {
   describe('mixed internal/external animations', () => {
     it('should handle switching from internal to external loop', () => {
       // Start with internal loop
-      let ctrl1 = new CameraController({
+      const ctrl1 = new CameraController({
         camera,
         domElement,
         useExternalAnimationLoop: false,
@@ -298,7 +298,7 @@ describe('External Animation Loop', () => {
       ctrl1.dispose();
 
       // Switch to external loop
-      let ctrl2 = new CameraController({
+      const ctrl2 = new CameraController({
         camera,
         domElement,
         useExternalAnimationLoop: true,

@@ -7,7 +7,7 @@ Options:
 - `domElement`: HTMLElement to attach input handlers
 - `width`, `height`, `devicePixelRatio`: initial viewport (optional)
 - `projection`: 'planar' (default)
-- `bearingSnap`: number (deg, default 7)
+- `bearingSnap`: number (deg, default 0 — snap disabled)
 - `bearingSnapEpsilon`: number (deg, default 0.001)
 - `handlers`: input handler config (see Handlers)
 - `minZoom`, `maxZoom`, `minPitch`, `maxPitch`, `panBounds`: constraints

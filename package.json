@@ -23,12 +23,12 @@
   "author": "Russell Middleton",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/russellmiddleton33/rovemaps-camera-controls.git"
+    "url": "git+https://github.com/RoveIQStudio/rovemaps-camera-controls.git"
   },
   "bugs": {
-    "url": "https://github.com/russellmiddleton33/rovemaps-camera-controls/issues"
+    "url": "https://github.com/RoveIQStudio/rovemaps-camera-controls/issues"
   },
-  "homepage": "https://russellmiddleton33.github.io/rovemaps-camera-controls/",
+  "homepage": "https://roveiqstudio.github.io/rovemaps-camera-controls/",
   "keywords": [
     "three",
     "threejs",
@@ -48,7 +48,7 @@
   "scripts": {
     "build": "tsup",
     "clean": "rimraf dist",
-    "lint": "eslint .",
+    "lint": "eslint . --ext .js,.cjs,.ts",
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -63,8 +63,11 @@
   "devDependencies": {
     "@types/node": "^24.7.0",
     "@types/three": "^0.180.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.29.1",
     "happy-dom": "^20.0.0",
     "prettier": "^3.3.3",

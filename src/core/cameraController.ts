@@ -65,7 +65,7 @@ export type CameraMoveEvents = {
   dragstart: { originalEvent?: Event };
   drag: { originalEvent?: Event };
   dragend: { originalEvent?: Event };
-  renderFrame: {};
+  renderFrame: Record<string, never>;
   error: { error: Error };
 };
 
@@ -655,10 +655,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
    * Call this from your animation loop (e.g., React Three Fiber's useFrame) when
    * useExternalAnimationLoop is true. This advances any active easeTo/flyTo animation.
    *
-   * @param deltaTime - Optional delta time in seconds (currently unused, for future use)
+   * @param _deltaTime - Optional delta time in seconds (currently unused, for future use)
    * @returns this for chaining
    */
-  update(deltaTime?: number): this {
+  update(_deltaTime?: number): this {
     if (this._activeAnimation) {
       this._advanceAnimation(browser.now());
     }

@@ -6,8 +6,8 @@ We actively maintain security updates for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
-| < 0.3.0 | :x:                |
+| 0.4.x   | :white_check_mark: |
+| < 0.4   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -52,13 +52,6 @@ The library automatically cleans up event listeners on `dispose()`. Always call 
 #### SSR Safety
 The library includes SSR guards for Next.js compatibility. Use `createControllerForNext()` factory when integrating with server-side rendering frameworks.
 
-## Security Changelog
-
-### Version 0.3.5 (Current)
-- Updated development dependencies to address esbuild vulnerability (GHSA-67mh-4wv8-2f99)
-- No security issues in production dependencies
-- All tests passing with latest security patches
-
 ## Third-Party Dependencies
 
 This library has minimal production dependencies:
@@ -69,6 +62,7 @@ Development dependencies are regularly updated and audited.
 
 ## Contact
 
-For urgent security matters, contact: [your-email@example.com]
+Report vulnerabilities privately via GitHub:
+https://github.com/RoveIQStudio/rovemaps-camera-controls/security/advisories/new
 
 For general questions, use GitHub Discussions or Issues.

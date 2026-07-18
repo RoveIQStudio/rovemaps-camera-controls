@@ -24,13 +24,16 @@
 Example:
 
 ```ts
-new HandlerManager(el, transform, helper, {
-  touch: {
-    rotateStartThresholdDeg: 1.0,
-    rotateContinueThresholdDeg: 0.5,
-    rotateDebounceMs: 100,
-  },
-});
+import { createController } from 'three-rovemaps-camera-controls';
+import type { HandlerManagerOptions } from 'three-rovemaps-camera-controls';
+
+const handlers: HandlerManagerOptions = {
+  scrollZoom: { around: 'pointer' },
+  mousePan: { dragThresholdPx: 3 },
+  boxZoom: { minAreaPx: 64 },
+  keyboard: { panStepPx: 100 },
+};
+const controller = createController({ camera, domElement, handlers });
 ```
 
 ### Keyboard

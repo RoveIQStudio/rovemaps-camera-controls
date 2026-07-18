@@ -1,6 +1,6 @@
 ## Quick Start
 
-Install (WIP publishing):
+Install:
 
 ```
 npm i three three-rovemaps-camera-controls
