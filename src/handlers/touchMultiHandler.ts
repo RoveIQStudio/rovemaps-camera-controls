@@ -37,6 +37,7 @@ export interface TouchMultiOptions {
   inertiaRotateFriction?: number; // friction for rotate/pitch (default: 12)
   // Debug overlay for mobile testing (shows gesture detection state on screen)
   showDebugOverlay?: boolean;
+  setTouchAction?: boolean; // default true: apply touch-action:none to the element while enabled
 }
 
 type Pt = { id: number; x: number; y: number };
@@ -48,10 +49,11 @@ export class TouchMultiHandler {
   private opts: Required<TouchMultiOptions>;
   private unbindDown: (() => void) | null = null;
   private unbindMoveUp: (() => void) | null = null;
+  private prevTouchAction: string | null = null;
   private pts: Map<number, Pt> = new Map();
   private active = false;
   private lastCenter = { x: 0, y: 0 };
-  private lastCenterEl = { x: 0, y: 0 }; // element-relative centroid to avoid visualViewport drift
+  private lastCenterEl = { x: 0, y: 0 }; // element-relative centroid of the two-finger pinch
   private lastDist = 0;
   private lastAngle = 0; // radians
   private mode: 'idle' | 'pan' | 'zoomRotate' = 'idle';
@@ -119,6 +121,7 @@ export class TouchMultiHandler {
       inertiaZoomFriction: 20,
       inertiaRotateFriction: 12,
       showDebugOverlay: false,
+      setTouchAction: true,
       ...opts,
     };
     if ((this.opts as any).onChange == null) (this.opts as any).onChange = () => {};
@@ -139,6 +142,10 @@ export class TouchMultiHandler {
     if (typeof window === 'undefined' || this.unbindDown) return;
     // Use TouchEvent API to match MapLibre and ensure synchronous multi-touch state
     this.unbindDown = on(this.el, 'touchstart', this.onDown as any, { passive: true });
+    if ((this.opts as any).setTouchAction !== false) {
+      this.prevTouchAction = this.el.style.touchAction;
+      this.el.style.touchAction = 'none';
+    }
     if (this.opts.showDebugOverlay) {
       this.createDebugOverlay();
     }
@@ -147,6 +154,10 @@ export class TouchMultiHandler {
   destroy() {
     this.unbindDown?.();
     this.unbindDown = null;
+    if (this.prevTouchAction != null) {
+      this.el.style.touchAction = this.prevTouchAction;
+      this.prevTouchAction = null;
+    }
     if (this.unbindMoveUp) { this.unbindMoveUp(); this.unbindMoveUp = null; }
     if (this.inertiaHandle != null) cancelAnimationFrame(this.inertiaHandle);
     this.pts.clear();
@@ -171,8 +182,7 @@ export class TouchMultiHandler {
       this.firstTouchDownTs = performance.now();
       const t = e.touches.item(0)!;
       const rect = this.el.getBoundingClientRect();
-      const vv = (window as any).visualViewport as VisualViewport | undefined;
-      const pointer = { x: (t.clientX + (vv?.offsetLeft ?? 0)) - (rect.left + (vv?.offsetLeft ?? 0)), y: (t.clientY + (vv?.offsetTop ?? 0)) - (rect.top + (vv?.offsetTop ?? 0)) };
+      const pointer = { x: t.clientX - rect.left, y: t.clientY - rect.top };
       const gp = (this.transform as any).groundFromScreen?.(pointer) ?? null;
       this.lastSinglePt = pointer;
       this.lastSingleGround = gp;
@@ -212,10 +222,9 @@ export class TouchMultiHandler {
     // Optional pitch gating (effectively disabled by default with 999ms threshold)
     this.allowPitchThisGesture = (performance.now() - this.firstTouchDownTs) <= this.opts.allowedSingleTouchTimeMs;
     // Seed ground center so first movement immediately pans (grab feel)
-    // Use fresh rect per move to avoid iOS visual viewport shifts
+    // Use a fresh rect per gesture so a resized/scrolled element stays accurate
     const rect = this.el.getBoundingClientRect();
-    const vv = (window as any).visualViewport as VisualViewport | undefined;
-    const centerEl = { x: (this.lastCenter.x + (vv?.offsetLeft ?? 0)) - (rect.left + (vv?.offsetLeft ?? 0)), y: (this.lastCenter.y + (vv?.offsetTop ?? 0)) - (rect.top + (vv?.offsetTop ?? 0)) };
+    const centerEl = { x: this.lastCenter.x - rect.left, y: this.lastCenter.y - rect.top };
     this.lastCenterEl = centerEl;
     const gp = (this.transform as any).groundFromScreen?.(centerEl) ?? null;
     this.lastGroundCenter = gp;
@@ -242,9 +251,8 @@ export class TouchMultiHandler {
       const dt = Math.max(1 / 120, (now - this.lastTs) / 1000);
       this.lastTs = now;
       const rect = this.el.getBoundingClientRect();
-      const vv = (window as any).visualViewport as VisualViewport | undefined;
       const t = e.touches.item(0)!;
-      const pointer = { x: (t.clientX + (vv?.offsetLeft ?? 0)) - (rect.left + (vv?.offsetLeft ?? 0)), y: (t.clientY + (vv?.offsetTop ?? 0)) - (rect.top + (vv?.offsetTop ?? 0)) };
+      const pointer = { x: t.clientX - rect.left, y: t.clientY - rect.top };
       const gpNow = (this.transform as any).groundFromScreen?.(pointer) ?? null;
       if (this.lastSingleGround && gpNow) {
         let dgx = (this.lastSingleGround.gx - gpNow.gx) * (this.opts.panXSign ?? 1);
@@ -297,8 +305,7 @@ export class TouchMultiHandler {
       p0 = arr[0]; p1 = arr[1];
     }
     if (!p0 || !p1) return;
-    const vv = (window as any).visualViewport as VisualViewport | undefined;
-    const center = { x: ((p0.x + p1.x) / 2 + (vv?.offsetLeft ?? 0)) - (rect.left + (vv?.offsetLeft ?? 0)), y: ((p0.y + p1.y) / 2 + (vv?.offsetTop ?? 0)) - (rect.top + (vv?.offsetTop ?? 0)) };
+    const center = { x: (p0.x + p1.x) / 2 - rect.left, y: (p0.y + p1.y) / 2 - rect.top };
     this.lastPinchPointer = center;
     const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
     const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
@@ -498,10 +505,9 @@ export class TouchMultiHandler {
           const remaining = [...this.pts.values()][0];
           if (remaining) {
             const rect = this.el.getBoundingClientRect();
-            const vv = (window as any).visualViewport as VisualViewport | undefined;
             const pointer = {
-              x: (remaining.x + (vv?.offsetLeft ?? 0)) - (rect.left + (vv?.offsetLeft ?? 0)),
-              y: (remaining.y + (vv?.offsetTop ?? 0)) - (rect.top + (vv?.offsetTop ?? 0))
+              x: remaining.x - rect.left,
+              y: remaining.y - rect.top
             };
             const gp = (this.transform as any).groundFromScreen?.(pointer) ?? null;
             this.lastSinglePt = pointer;
