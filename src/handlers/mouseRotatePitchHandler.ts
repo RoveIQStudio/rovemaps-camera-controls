@@ -65,7 +65,9 @@ export class MouseRotatePitchHandler {
     // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
     if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
     const isRotateBtn = e.button === this.opts.rotateButton;
-    const wantsPitch = (this.opts.pitchModifier === 'shift' && e.shiftKey) || (this.opts.pitchModifier === 'alt' && (e.altKey || e.metaKey));
+    // Pitch-modifier activation is a left-button gesture; other buttons activate only via rotateButton.
+    const wantsPitch = e.button === 0 &&
+      ((this.opts.pitchModifier === 'shift' && e.shiftKey) || (this.opts.pitchModifier === 'alt' && (e.altKey || e.metaKey)));
     if (!isRotateBtn && !wantsPitch) return;
     this.el.setPointerCapture?.(e.pointerId);
     this.dragging = true;

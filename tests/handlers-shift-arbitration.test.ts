@@ -77,4 +77,17 @@ describe('shift+left-drag arbitration', () => {
     expect(helper.calls.some((c: unknown[]) => c[0] === 'rpbz')).toBe(false); // rotate/pitch yielded too
     mgr.dispose();
   });
+
+  it('rightButtonPan mode: shift+right-drag pans only — no pitch double-handling', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const t = makeTransform();
+    const helper = makeHelper();
+    const hm = new HandlerManager(el, t, helper, { rightButtonPan: true });
+    el.dispatchEvent(pev('pointerdown', { button: 2, buttons: 2, shiftKey: true, clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { buttons: 2, shiftKey: true, clientX: 150, clientY: 150 }));
+    expect(t.adjustCalls).toBeGreaterThan(0); // secondary pan owns the drag
+    expect(helper.calls.filter((c: any[]) => c[0] === 'rpbz').length).toBe(0); // fails before fix: pitch fired too
+    hm.dispose();
+  });
 });
