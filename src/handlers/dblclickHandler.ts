@@ -19,6 +19,9 @@ export class DblclickHandler {
   private opts: Required<DblclickOptions>;
   private unbind: (() => void) | null = null;
   private lastTap: { t: number; x: number; y: number } | null = null;
+  // Sentinel "long ago" so a genuine dblclick before any touch tap (incl. within
+  // the first 700ms after page load, when performance.now() is still small) is not suppressed.
+  private lastTouchTapZoomTs = Number.NEGATIVE_INFINITY;
 
   constructor(el: HTMLElement, transform: ITransform, helper: ICameraHelper, opts?: DblclickOptions) {
     this.el = el; this.transform = transform; this.helper = helper;
@@ -48,6 +51,8 @@ export class DblclickHandler {
   }
 
   private onDblClick = (e: MouseEvent) => {
+    // Suppress the browser-synthesized dblclick that follows a handled touch double-tap
+    if (performance.now() - this.lastTouchTapZoomTs < 700) return;
     if (this.opts.preventDefault) e.preventDefault();
     const rect = this.el.getBoundingClientRect();
     const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -68,6 +73,7 @@ export class DblclickHandler {
       // double tap
       const dz = this.getZoomDelta(false);
       this.applyZoomAround(dz, { x, y });
+      this.lastTouchTapZoomTs = now;
       this.opts.onChange({ axes: { zoom: true }, originalEvent: e });
       this.lastTap = null;
     }
