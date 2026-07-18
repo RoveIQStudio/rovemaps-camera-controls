@@ -112,4 +112,22 @@ describe('external-gesture debounce vs programmatic animation', () => {
     expect(ctl.isMoving()).toBe(true); // fails before fix: false
     ctl.dispose();
   });
+
+  it('a degenerate flyTo delegate forwards the absorbed gesture axes to easeTo', () => {
+    vi.useFakeTimers();
+    const fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController();
+    let rotateEnded = false;
+    ctl.on('rotateend', () => { rotateEnded = true; });
+
+    (ctl as any)._externalChange({ axes: { rotate: true } }); // rotate burst
+    // Degenerate flyTo: same center (no pan), zoom-only -> u1 < 1e-3 -> delegates to easeTo.
+    ctl.flyTo({ center: { x: 0, y: 0 }, zoom: 3, duration: 100 });
+
+    // The delegated easeTo does not continue rotate, so the absorbed rotate axis must be ended.
+    expect(rotateEnded).toBe(true);       // fails before fix: axis leaks, no rotateend
+    expect(ctl.isRotating()).toBe(false); // fails before fix: stuck true
+    ctl.dispose();
+  });
 });

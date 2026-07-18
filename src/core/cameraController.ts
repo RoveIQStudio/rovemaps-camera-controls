@@ -489,6 +489,8 @@ export class CameraController extends Evented<CameraMoveEvents> {
       const w0 = effH;
       const w1 = w0 * (Math.pow(2, startZoom) / Math.pow(2, endZoom));
       if (u1 < 1e-3) {
+        // Hand the absorbed burst to the delegated easeTo (its top-of-method absorb re-collects it)
+        this._pendingExternalAxes = pendingEnd;
         return this.easeTo({ ...options, duration });
       }
       const params = computeFlyParams(w0, w1, u1, rho);
