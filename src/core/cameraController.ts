@@ -149,8 +149,6 @@ export class CameraController extends Evented<CameraMoveEvents> {
   private _rolling = false;
   private _dragging = false;
   private _constraints: TransformConstraints = { minZoom: -Infinity, maxZoom: Infinity, minPitch: 0, maxPitch: 85 };
-  private _softClamping = false;
-  private _softClampTimer: ReturnType<typeof setTimeout> | null = null;
   private _suppressEvents: boolean = false;
   private _isInternalUpdate: boolean = false;
   private _resizeObserver?: ResizeObserver;
@@ -249,11 +247,6 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (this._moveEndTimer != null) {
       (globalThis as any).clearTimeout?.(this._moveEndTimer);
       this._moveEndTimer = null;
-    }
-    if (this._softClampTimer != null) {
-      (globalThis as any).clearTimeout?.(this._softClampTimer);
-      this._softClampTimer = null;
-      this._softClamping = false;
     }
     this._endAllAxes();
   }
@@ -1112,7 +1105,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
   }
 
   private _applySoftPanBounds() {
-    if (!this._softPanBoundsEnabled || this._softClamping) return;
+    if (!this._softPanBoundsEnabled) return;
     const bounds = this._constraints.panBounds;
     if (!bounds) return;
     const c = this.getCenter();
@@ -1122,12 +1115,9 @@ export class CameraController extends Evented<CameraMoveEvents> {
       z: c.z,
     };
     if (clamped.x !== c.x || clamped.y !== c.y) {
-      this._softClamping = true;
-      // Smooth nudge back to bounds
+      // Termination: the settle targets the clamped center, so when it completes
+      // this check finds the camera in bounds and no further settle starts.
       this.easeTo({ center: clamped, duration: 180, easing: defaultEasing, essential: true });
-      // Clear flag after short delay to avoid recursion (SSR-safe); track the timer so dispose can cancel it
-      if (this._softClampTimer != null) (globalThis as any).clearTimeout?.(this._softClampTimer);
-      this._softClampTimer = (globalThis as any).setTimeout?.(() => { this._softClamping = false; this._softClampTimer = null; }, 220) as any;
     }
   }
 }

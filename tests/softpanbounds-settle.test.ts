@@ -47,4 +47,22 @@ describe('softPanBounds settle', () => {
     for (let t = 180; t <= 400; t += 16) { fakeNow = t; flushFrames(fakeNow); }
     expect(ctl.getCenter().x).toBe(cx); // fails before fix: orphaned settle keeps moving the camera
   });
+
+  it('a second out-of-bounds movement during a prior settle still settles (no stranding)', () => {
+    let fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController();
+
+    ctl.easeTo({ center: { x: 50, y: 0 }, duration: 100 });
+    fakeNow = 150; flushFrames(fakeNow); // done -> settle #1 starts (old code: flag set for 220ms)
+    fakeNow = 166; flushFrames(fakeNow); // settle #1 advancing
+
+    // interrupt with a second out-of-bounds move that finishes inside the old flag window
+    ctl.easeTo({ center: { x: 60, y: 0 }, duration: 50 });
+    for (let t = 170; t <= 240; t += 16) { fakeNow = t; flushFrames(fakeNow); }
+    // old code: done fires at ~t=220 while the flag is still set -> no settle #2 -> stranded at 60
+    for (let t = 250; t <= 700; t += 16) { fakeNow = t; flushFrames(fakeNow); }
+    expect(ctl.getCenter().x).toBeLessThanOrEqual(10.001); // fails before fix: 60
+    ctl.dispose();
+  });
 });
