@@ -16,6 +16,7 @@ export interface MousePanOptions {
   inertiaPanYSign?: 1 | -1;
   inertiaPanXSign?: 1 | -1;
   anchorTightness?: number;
+  yieldToBoxZoomShift?: boolean; // ignore shift+left downs so BoxZoom owns that gesture
 }
 
 export class MousePanHandler {
@@ -61,6 +62,7 @@ export class MousePanHandler {
       inertiaPanYSign: 1,
       inertiaPanXSign: 1,
       anchorTightness: 1,
+      yieldToBoxZoomShift: false,
       ...(opts || {}),
     };
     if (opts && 'inertiaPanFriction' in opts && opts.inertiaPanFriction == null) delete merged.inertiaPanFriction;
@@ -87,6 +89,8 @@ export class MousePanHandler {
     // Only handle real mouse, ignore touch/pen to avoid double-handling on touch devices
     if (e.pointerType !== 'mouse') return;
     if (e.button !== this.opts.button) return;
+    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
+    if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
     // A new grab must stop any in-flight glide immediately
     if (this.inertiaHandle != null) { cancelAnimationFrame(this.inertiaHandle); this.inertiaHandle = null; }
     this.vx = this.vy = this.instVx = this.instVy = 0;

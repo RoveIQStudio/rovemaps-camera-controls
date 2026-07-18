@@ -13,6 +13,7 @@ export interface MouseRotatePitchOptions {
   pitchSign?: 1 | -1;
   recenterOnPointerDown?: boolean;
   anchorTightness?: number; // 0..1
+  yieldToBoxZoomShift?: boolean; // ignore shift+left downs so BoxZoom owns that gesture
 }
 
 export class MouseRotatePitchHandler {
@@ -41,6 +42,7 @@ export class MouseRotatePitchHandler {
       pitchSign: 1,
       recenterOnPointerDown: false,
       anchorTightness: 1,
+      yieldToBoxZoomShift: false,
       ...opts,
     };
   }
@@ -58,6 +60,8 @@ export class MouseRotatePitchHandler {
 
   private onDown = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse') return;
+    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
+    if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
     const isRotateBtn = e.button === this.opts.rotateButton;
     const wantsPitch = (this.opts.pitchModifier === 'shift' && e.shiftKey) || (this.opts.pitchModifier === 'alt' && (e.altKey || e.metaKey));
     if (!isRotateBtn && !wantsPitch) return;

@@ -53,6 +53,10 @@ export class HandlerManager {
     this.transform = transform;
     this.helper = helper;
 
+    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled;
+    // pan and rotate/pitch yield that gesture so the three handlers don't fight.
+    const boxZoomEnabled = options?.boxZoom !== false;
+
     // Suppress native context menu to allow two-finger/right-drag rotate+pitch without interruption
     if (options?.suppressContextMenu ?? true) {
       this.onCtx = (e: Event) => e.preventDefault();
@@ -78,6 +82,7 @@ export class HandlerManager {
       ...(typeof mpOpts === 'object' ? mpOpts : {}),
     };
     if (options?.inertiaPanFriction != null) basePan.inertiaPanFriction = options.inertiaPanFriction;
+    basePan.yieldToBoxZoomShift = basePan.yieldToBoxZoomShift ?? boxZoomEnabled;
     // Mouse bindings depend on rightButtonPan mode:
     // - Default (rightButtonPan = false): left pans, right rotates/pitches
     // - Swapped  (rightButtonPan = true): right pans, left rotates/pitches
@@ -90,6 +95,7 @@ export class HandlerManager {
         button: 2,
       };
       if (options?.inertiaPanFriction != null) basePanSecondary.inertiaPanFriction = options.inertiaPanFriction;
+      basePanSecondary.yieldToBoxZoomShift = basePanSecondary.yieldToBoxZoomShift ?? boxZoomEnabled;
       this.mousePanSecondary = new MousePanHandler(this.el, this.transform, this.helper, basePanSecondary);
       this.mousePanSecondary.enable();
       // Left button rotates/pitches
@@ -100,6 +106,7 @@ export class HandlerManager {
         ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
       };
       if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
+      mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
       this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
       this.mouseRotatePitch.enable();
       // Do NOT create the default left-button pan in this mode
@@ -114,6 +121,7 @@ export class HandlerManager {
         ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
       };
       if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
+      mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
       this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
       this.mouseRotatePitch.enable();
     }
