@@ -2679,6 +2679,7 @@ var CameraController = class extends Evented {
     const pendingEnd = this._absorbPendingExternalEnd();
     if (pendingEnd.rotate) this._applyBearingSnap();
     if (!((_a = options.essential) != null ? _a : false) && browser.reducedMotion()) {
+      this._pendingExternalAxes = pendingEnd;
       return this.easeTo({ ...options, animate: false });
     }
     const startCenter = this.getCenter();
