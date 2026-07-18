@@ -617,7 +617,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
   fitBounds(bounds: { min: { x: number; y: number }; max: { x: number; y: number } }, options?: EaseOptions & { offset?: { x: number; y: number } }) {
     const { center, zoom, bearing } = new PlanarCameraHelper().cameraForBoxAndBearing(this.transform, bounds, options);
-    return this.easeTo({ center, zoom, bearing, ...options });
+    // cameraForBoxAndBearing bakes padding & offset into the returned center;
+    // re-passing them to easeTo would apply them a second time.
+    const { offset: _offset, padding: _padding, ...ease } = (options ?? {}) as any;
+    return this.easeTo({ ...ease, center, zoom, bearing });
   }
 
   cameraForBounds(bounds: { min: { x: number; y: number }; max: { x: number; y: number } }, options?: EaseOptions & { offset?: { x: number; y: number } }) {
