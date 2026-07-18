@@ -37,3 +37,8 @@ export function shortestAngleDelta(from: number, to: number) {
   return normalizeAngleDeg(to - from);
 }
 
+export function rubberbandDamp(overshoot: number, strength: number) {
+  // 1 inside bounds; approaches 0 as overshoot grows. Matches handler inline damping.
+  return overshoot > 0 ? 1 / (1 + overshoot * strength) : 1;
+}
+

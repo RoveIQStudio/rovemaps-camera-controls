@@ -1,6 +1,7 @@
 import type { ITransform } from '../transform/interfaces';
 import type { ICameraHelper } from '../helpers/icameraHelper';
 import { on } from '../util/dom';
+import { rubberbandDamp } from '../util/math';
 import type { HandlerDelta } from './types';
 
 export interface MousePanOptions {
@@ -135,9 +136,8 @@ export class MousePanHandler {
         const overX = nextX < bounds.min.x ? bounds.min.x - nextX : nextX > bounds.max.x ? nextX - bounds.max.x : 0;
         const overY = nextY < bounds.min.y ? bounds.min.y - nextY : nextY > bounds.max.y ? nextY - bounds.max.y : 0;
         const s = this.opts.rubberbandStrength;
-        const damp = (o: number) => (o > 0 ? 1 / (1 + o * s) : 1);
-        dgx *= damp(overX);
-        dgz *= damp(overY);
+        dgx *= rubberbandDamp(overX, s);
+        dgz *= rubberbandDamp(overY, s);
       }
       (this.transform as any).adjustCenterByGroundDelta?.(dgx, dgz);
       // Recompute ground under pointer after adjustment to keep anchor locked
@@ -227,8 +227,8 @@ export class MousePanHandler {
         const nx = this.transform.center.x + dgx; const ny = this.transform.center.y + dgz;
         const overX = nx < bounds.min.x ? bounds.min.x - nx : nx > bounds.max.x ? nx - bounds.max.x : 0;
         const overY = ny < bounds.min.y ? bounds.min.y - ny : ny > bounds.max.y ? ny - bounds.max.y : 0;
-        const s = this.opts.rubberbandStrength; const damp = (o: number) => (o > 0 ? 1 / (1 + o * s) : 1);
-        dgx *= damp(overX); dgz *= damp(overY);
+        const s = this.opts.rubberbandStrength;
+        dgx *= rubberbandDamp(overX, s); dgz *= rubberbandDamp(overY, s);
       }
       (this.transform as any).adjustCenterByGroundDelta?.(dgx, dgz);
       this.opts.onChange({ axes: { pan: true } });
