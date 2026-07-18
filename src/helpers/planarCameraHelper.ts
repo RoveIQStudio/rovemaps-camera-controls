@@ -88,14 +88,17 @@ export class PlanarCameraHelper implements ICameraHelper {
       transform.setZoom(z);
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       const up = (transform as any).upAxis === 'z' ? 'z' : 'y';
+      let projected = 0;
       for (const c of worldCorners) {
         const sp = up === 'z'
           ? transform.worldToScreen({ x: c.x, y: c.y, z: 0 } as any)
           : transform.worldToScreen({ x: c.x, y: 0, z: c.y } as any);
-        const p = sp ?? { x: 0, y: 0 };
-        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        if (!sp) continue; // skip unprojectable corner rather than corrupting the box
+        projected++;
+        if (sp.x < minX) minX = sp.x; if (sp.x > maxX) maxX = sp.x;
+        if (sp.y < minY) minY = sp.y; if (sp.y > maxY) maxY = sp.y;
       }
+      if (projected === 0) return { w: Infinity, h: Infinity }; // force the search to zoom out
       const w = maxX - minX;
       const h = maxY - minY;
       return { w, h };
@@ -113,7 +116,10 @@ export class PlanarCameraHelper implements ICameraHelper {
       // Early exit if converged within tolerance
       if (Math.abs(hi - lo) < tolerance) break;
     }
-    const zoom = lo;
+    // Resolve the search result through the transform's constraints so the
+    // padding/offset math below uses the zoom that will actually be applied.
+    transform.setZoom(lo);
+    const zoom = transform.zoom;
     // Restore
     transform.setCenter(saved.center);
     transform.setZoom(saved.zoom);

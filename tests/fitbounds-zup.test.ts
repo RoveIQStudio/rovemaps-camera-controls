@@ -22,4 +22,14 @@ describe('fitBounds under z-up', () => {
     expect(Number.isFinite(zz)).toBe(true);
     expect(Math.abs(zy - zz)).toBeLessThan(0.1);
   });
+
+  it('y-up and z-up agree under nonzero bearing with padding', () => {
+    const mk = (upAxis: 'y' | 'z') => {
+      const camera = new THREE.PerspectiveCamera(60, 800 / 600, 0.1, 4000);
+      const t = new ThreePlanarTransform({ camera, width: 800, height: 600, upAxis });
+      return new PlanarCameraHelper().cameraForBoxAndBearing(t as any, bounds, { bearing: 30, padding: { left: 100 } } as any);
+    };
+    const a = mk('y'); const b = mk('z');
+    expect(Math.abs(a.zoom - b.zoom)).toBeLessThan(0.1);
+  });
 });

@@ -35,4 +35,13 @@ describe('fitBounds offset/padding application', () => {
     expect(ctl.getPadding().left).toBe(0); // padding was consumed by the fit, not applied to transform
     ctl.dispose();
   });
+
+  it('applies offset once under nonzero bearing', () => {
+    const ctl = makeController();
+    const expected = ctl.cameraForBounds(bounds, { bearing: 45, offset: { x: 100, y: 0 } } as any);
+    ctl.fitBounds(bounds, { bearing: 45, offset: { x: 100, y: 0 }, animate: false } as any);
+    expect(ctl.getCenter().x).toBeCloseTo(expected.center.x, 6);
+    expect(ctl.getCenter().y).toBeCloseTo(expected.center.y, 6);
+    ctl.dispose();
+  });
 });
