@@ -57,6 +57,14 @@ export class HandlerManager {
     // pan and rotate/pitch yield that gesture so the three handlers don't fight.
     const boxZoomEnabled = options?.boxZoom !== false;
 
+    // Explicit `false` disables the corresponding handler; anything else (undefined
+    // or an options object) leaves it enabled with defaults.
+    const touchEnabled = options?.touch !== false;
+    const keyboardEnabled = options?.keyboard !== false;
+    const dblclickEnabled = options?.dblclick !== false;
+    const mousePanEnabled = options?.mousePan !== false;
+    const mouseRotatePitchEnabled = options?.mouseRotatePitch !== false;
+
     // Suppress native context menu to allow two-finger/right-drag rotate+pitch without interruption
     if (options?.suppressContextMenu ?? true) {
       this.onCtx = (e: Event) => e.preventDefault();
@@ -82,85 +90,99 @@ export class HandlerManager {
       ...(typeof mpOpts === 'object' ? mpOpts : {}),
     };
     if (options?.inertiaPanFriction != null) basePan.inertiaPanFriction = options.inertiaPanFriction;
-    basePan.yieldToBoxZoomShift = basePan.yieldToBoxZoomShift ?? boxZoomEnabled;
     // Mouse bindings depend on rightButtonPan mode:
     // - Default (rightButtonPan = false): left pans, right rotates/pitches
     // - Swapped  (rightButtonPan = true): right pans, left rotates/pitches
     if (options?.rightButtonPan) {
       // Right button pans
-      const basePanSecondary: any = {
-        onChange: options?.onChange,
-        rubberbandStrength: options?.rubberbandStrength,
-        ...(typeof mpOpts === 'object' ? mpOpts : {}),
-        button: 2,
-      };
-      if (options?.inertiaPanFriction != null) basePanSecondary.inertiaPanFriction = options.inertiaPanFriction;
-      basePanSecondary.yieldToBoxZoomShift = basePanSecondary.yieldToBoxZoomShift ?? boxZoomEnabled;
-      this.mousePanSecondary = new MousePanHandler(this.el, this.transform, this.helper, basePanSecondary);
-      this.mousePanSecondary.enable();
+      if (mousePanEnabled) {
+        const basePanSecondary: any = {
+          onChange: options?.onChange,
+          rubberbandStrength: options?.rubberbandStrength,
+          ...(typeof mpOpts === 'object' ? mpOpts : {}),
+          button: 2,
+        };
+        if (options?.inertiaPanFriction != null) basePanSecondary.inertiaPanFriction = options.inertiaPanFriction;
+        basePanSecondary.yieldToBoxZoomShift = basePanSecondary.yieldToBoxZoomShift ?? boxZoomEnabled;
+        this.mousePanSecondary = new MousePanHandler(this.el, this.transform, this.helper, basePanSecondary);
+        this.mousePanSecondary.enable();
+      }
       // Left button rotates/pitches
-      const mrpOpts = options?.mouseRotatePitch ?? {};
-      const mrpBase: any = {
-        onChange: options?.onChange,
-        rotateButton: 0,
-        ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
-      };
-      if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
-      mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
-      this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
-      this.mouseRotatePitch.enable();
+      if (mouseRotatePitchEnabled) {
+        const mrpOpts = options?.mouseRotatePitch ?? {};
+        const mrpBase: any = {
+          onChange: options?.onChange,
+          rotateButton: 0,
+          ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
+        };
+        if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
+        mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
+        this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
+        this.mouseRotatePitch.enable();
+      }
       // Do NOT create the default left-button pan in this mode
     } else {
       // Default: left pans
-      this.mousePan = new MousePanHandler(this.el, this.transform, this.helper, basePan);
-      this.mousePan.enable();
+      if (mousePanEnabled) {
+        basePan.yieldToBoxZoomShift = basePan.yieldToBoxZoomShift ?? boxZoomEnabled;
+        this.mousePan = new MousePanHandler(this.el, this.transform, this.helper, basePan);
+        this.mousePan.enable();
+      }
       // Right button rotates/pitches
-      const mrpOpts = options?.mouseRotatePitch ?? {};
-      const mrpBase: any = {
-        onChange: options?.onChange,
-        ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
-      };
-      if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
-      mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
-      this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
-      this.mouseRotatePitch.enable();
+      if (mouseRotatePitchEnabled) {
+        const mrpOpts = options?.mouseRotatePitch ?? {};
+        const mrpBase: any = {
+          onChange: options?.onChange,
+          ...(typeof mrpOpts === 'object' ? mrpOpts : {}),
+        };
+        if (options?.anchorTightness != null) mrpBase.anchorTightness = options.anchorTightness;
+        mrpBase.yieldToBoxZoomShift = mrpBase.yieldToBoxZoomShift ?? boxZoomEnabled;
+        this.mouseRotatePitch = new MouseRotatePitchHandler(this.el, this.transform, this.helper, mrpBase);
+        this.mouseRotatePitch.enable();
+      }
     }
     // Touch handler (default enabled)
-    const touchOpts = options?.touch ?? {};
-    const touchBase: any = { onChange: options?.onChange, ...(typeof touchOpts === 'object' ? touchOpts : {}) };
-    if (options?.anchorTightness != null) touchBase.anchorTightness = options.anchorTightness;
-    if (options?.rubberbandStrength != null) touchBase.rubberbandStrength = options.rubberbandStrength;
-    if (options?.inertiaPanFriction != null) touchBase.inertiaPanFriction = options.inertiaPanFriction;
-    if (options?.inertiaZoomFriction != null) touchBase.inertiaZoomFriction = options.inertiaZoomFriction;
-    if (options?.inertiaRotateFriction != null) touchBase.inertiaRotateFriction = options.inertiaRotateFriction;
-    // Auto touch profile: apply conservative thresholds on touch devices unless explicitly provided
-    const autoTouch = options?.autoTouchProfile !== false; // default true
-    const isTouch = typeof window !== 'undefined' && (("ontouchstart" in window) || (navigator.maxTouchPoints > 0));
-    if (autoTouch && isTouch) {
-      if (touchBase.rotateThresholdDeg == null) touchBase.rotateThresholdDeg = 0.5;
-      if (touchBase.pitchThresholdPx == null) touchBase.pitchThresholdPx = 12;
-      if (touchBase.zoomThreshold == null) touchBase.zoomThreshold = 0.04;
+    if (touchEnabled) {
+      const touchOpts = options?.touch ?? {};
+      const touchBase: any = { onChange: options?.onChange, ...(typeof touchOpts === 'object' ? touchOpts : {}) };
+      if (options?.anchorTightness != null) touchBase.anchorTightness = options.anchorTightness;
+      if (options?.rubberbandStrength != null) touchBase.rubberbandStrength = options.rubberbandStrength;
+      if (options?.inertiaPanFriction != null) touchBase.inertiaPanFriction = options.inertiaPanFriction;
+      if (options?.inertiaZoomFriction != null) touchBase.inertiaZoomFriction = options.inertiaZoomFriction;
+      if (options?.inertiaRotateFriction != null) touchBase.inertiaRotateFriction = options.inertiaRotateFriction;
+      // Auto touch profile: apply conservative thresholds on touch devices unless explicitly provided
+      const autoTouch = options?.autoTouchProfile !== false; // default true
+      const isTouch = typeof window !== 'undefined' && (("ontouchstart" in window) || (navigator.maxTouchPoints > 0));
+      if (autoTouch && isTouch) {
+        if (touchBase.rotateThresholdDeg == null) touchBase.rotateThresholdDeg = 0.5;
+        if (touchBase.pitchThresholdPx == null) touchBase.pitchThresholdPx = 12;
+        if (touchBase.zoomThreshold == null) touchBase.zoomThreshold = 0.04;
+      }
+      this.touch = new TouchMultiHandler(this.el, this.transform, this.helper, touchBase);
+      this.touch.enable();
     }
-    this.touch = new TouchMultiHandler(this.el, this.transform, this.helper, touchBase);
-    this.touch.enable();
     // Keyboard handler (default enabled)
-    const kbOpts = options?.keyboard ?? {};
-    this.keyboard = new KeyboardHandler(
-      this.el,
-      this.transform,
-      this.helper,
-      { onChange: options?.onChange, ...(typeof kbOpts === 'object' ? kbOpts : {}) }
-    );
-    this.keyboard.enable();
+    if (keyboardEnabled) {
+      const kbOpts = options?.keyboard ?? {};
+      this.keyboard = new KeyboardHandler(
+        this.el,
+        this.transform,
+        this.helper,
+        { onChange: options?.onChange, ...(typeof kbOpts === 'object' ? kbOpts : {}) }
+      );
+      this.keyboard.enable();
+    }
     // Dblclick handler (default enabled)
-    const dblOpts = options?.dblclick ?? {};
-    this.dblclick = new DblclickHandler(
-      this.el,
-      this.transform,
-      this.helper,
-      { onChange: options?.onChange, ...(typeof dblOpts === 'object' ? dblOpts : {}) }
-    );
-    this.dblclick.enable();
+    if (dblclickEnabled) {
+      const dblOpts = options?.dblclick ?? {};
+      this.dblclick = new DblclickHandler(
+        this.el,
+        this.transform,
+        this.helper,
+        { onChange: options?.onChange, ...(typeof dblOpts === 'object' ? dblOpts : {}) }
+      );
+      this.dblclick.enable();
+    }
     // Box zoom (default enabled; boxZoom: false disables)
     if (boxZoomEnabled) {
       const boxOpts = options?.boxZoom ?? {};
