@@ -297,6 +297,8 @@ export class CameraController extends Evented<CameraMoveEvents> {
   setConstraints(c: Partial<TransformConstraints>) { this._constraints = { ...this._constraints, ...c }; this.transform.setConstraints(this._constraints); this._emitRender(); return this; }
 
   jumpTo(options: { center?: { x: number; y: number; z?: number }; zoom?: number; bearing?: number; pitch?: number; roll?: number; padding?: Partial<Padding> }, methodOpts?: MethodOptions) {
+    // MapLibre parity: an instant jump supersedes any in-flight animation.
+    this._cancelActiveAnimation();
     const wasSuppressed = this._isInternalUpdate;
     if (methodOpts?.silent) this._isInternalUpdate = true;
 
