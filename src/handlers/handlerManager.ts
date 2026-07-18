@@ -119,7 +119,7 @@ export class HandlerManager {
     }
     // Touch handler (default enabled)
     const touchOpts = options?.touch ?? {};
-    const touchBase: any = typeof touchOpts === 'object' ? { ...touchOpts } : { onChange: options?.onChange };
+    const touchBase: any = { onChange: options?.onChange, ...(typeof touchOpts === 'object' ? touchOpts : {}) };
     if (options?.anchorTightness != null) touchBase.anchorTightness = options.anchorTightness;
     if (options?.rubberbandStrength != null) touchBase.rubberbandStrength = options.rubberbandStrength;
     if (options?.inertiaPanFriction != null) touchBase.inertiaPanFriction = options.inertiaPanFriction;
@@ -141,7 +141,7 @@ export class HandlerManager {
       this.el,
       this.transform,
       this.helper,
-      typeof kbOpts === 'object' ? kbOpts : { onChange: options?.onChange }
+      { onChange: options?.onChange, ...(typeof kbOpts === 'object' ? kbOpts : {}) }
     );
     this.keyboard.enable();
     // Dblclick handler (default enabled)
@@ -150,7 +150,7 @@ export class HandlerManager {
       this.el,
       this.transform,
       this.helper,
-      typeof dblOpts === 'object' ? dblOpts : { onChange: options?.onChange }
+      { onChange: options?.onChange, ...(typeof dblOpts === 'object' ? dblOpts : {}) }
     );
     this.dblclick.enable();
     // Box zoom (default enabled)
@@ -159,7 +159,7 @@ export class HandlerManager {
       this.el,
       this.transform,
       this.helper,
-      typeof boxOpts === 'object' ? boxOpts : { onChange: options?.onChange }
+      { onChange: options?.onChange, ...(typeof boxOpts === 'object' ? boxOpts : {}) }
     );
     this.boxZoom.enable();
     // Safari gesture handler (optional)
