@@ -16,8 +16,8 @@ Map GL JS-compatible camera controls for Three.js with camera API, gestures, and
 
 Alternatively, open the live demos directly:
 
-- Y-up demo: https://russellmiddleton33.github.io/rovemaps-camera-controls/demo/
-- Z-up demo: https://russellmiddleton33.github.io/rovemaps-camera-controls/demo/zup.html
+- Y-up demo: https://roveiqstudio.github.io/rovemaps-camera-controls/demo/
+- Z-up demo: https://roveiqstudio.github.io/rovemaps-camera-controls/demo/zup.html
 
 - Quick Start: /QuickStart
 - API Reference: /API

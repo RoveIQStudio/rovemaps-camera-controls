@@ -1,8 +1,8 @@
 ## Examples
 
 ### Live Demos
-- **Y-up demo**: https://russellmiddleton33.github.io/rovemaps-camera-controls/demo/
-- **Z-up demo**: https://russellmiddleton33.github.io/rovemaps-camera-controls/demo/zup.html
+- **Y-up demo**: https://roveiqstudio.github.io/rovemaps-camera-controls/demo/
+- **Z-up demo**: https://roveiqstudio.github.io/rovemaps-camera-controls/demo/zup.html
 
 ### Vite demo site
 - Located at `examples/site/`
