@@ -89,3 +89,26 @@ describe('easeTo edge cases', () => {
     ctl.dispose();
   });
 });
+
+describe('flyTo reduced motion', () => {
+  it('lands instantly on the target under prefers-reduced-motion', () => {
+    vi.spyOn(browser, 'reducedMotion').mockReturnValue(true);
+    const ctl = makeController();
+    ctl.flyTo({ center: { x: 50, y: 25 }, zoom: 4, bearing: 90 });
+    expect(ctl.getCenter().x).toBe(50);
+    expect(ctl.getCenter().y).toBe(25);
+    expect(ctl.getZoom()).toBe(4);
+    expect(ctl.getBearing()).toBe(90);
+    expect(ctl.isMoving()).toBe(false);
+    ctl.dispose();
+  });
+
+  it('still animates when essential: true', () => {
+    vi.spyOn(browser, 'reducedMotion').mockReturnValue(true);
+    vi.spyOn(browser, 'now').mockReturnValue(1000);
+    const ctl = makeController();
+    ctl.flyTo({ center: { x: 50, y: 25 }, zoom: 4, essential: true, duration: 500 } as any);
+    expect(ctl.isMoving()).toBe(true); // animation state active, not an instant jump
+    ctl.dispose();
+  });
+});

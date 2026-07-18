@@ -445,6 +445,11 @@ export class CameraController extends Evented<CameraMoveEvents> {
     // snapped the bearing, snap now so the flight captures (and lands on) the snapped value.
     const pendingEnd = this._absorbPendingExternalEnd();
     if (pendingEnd.rotate) this._applyBearingSnap();
+    // Reduced motion: resolve the full target and jump (easeTo's !animate path
+    // also cancels any in-flight animation).
+    if (!((options as any).essential ?? false) && browser.reducedMotion()) {
+      return this.easeTo({ ...options, animate: false } as any);
+    }
     const startCenter = this.getCenter();
     const endCenter = options.center ?? startCenter;
     const startZoom = this.getZoom();
