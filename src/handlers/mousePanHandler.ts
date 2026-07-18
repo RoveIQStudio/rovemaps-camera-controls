@@ -88,13 +88,15 @@ export class MousePanHandler {
   private onDown = (e: PointerEvent) => {
     // Only handle real mouse, ignore touch/pen to avoid double-handling on touch devices
     if (e.pointerType !== 'mouse') return;
-    if (e.button !== this.opts.button) return;
-    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
-    if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
-    // A new grab must stop any in-flight glide immediately
+    // A new mouse-down of any button stops any in-flight glide immediately (MapLibre
+    // behavior). Runs before the button/shift guards so a right-button rotate grab or a
+    // shift+left box-zoom grab still kills the pan inertia it lands on top of.
     if (this.inertiaHandle != null) { cancelAnimationFrame(this.inertiaHandle); this.inertiaHandle = null; }
     this.vx = this.vy = this.instVx = this.instVy = 0;
     this.gvx = this.gvz = this.igvx = this.igvz = 0;
+    if (e.button !== this.opts.button) return;
+    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
+    if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
     this.el.setPointerCapture?.(e.pointerId);
     this.dragging = false;
     this.startX = this.lastX = e.clientX;

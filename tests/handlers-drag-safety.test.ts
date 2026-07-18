@@ -75,4 +75,35 @@ describe('mouse pan drag safety', () => {
     expect(t.center.y).toBe(cy);
     h.destroy();
   });
+
+  it('a cross-handler grab (right button) stops in-flight inertia', () => {
+    let nextId = 1;
+    const queue = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { const id = nextId++; queue.set(id, cb); return id; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { queue.delete(id); });
+    let clock = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => (clock += 20));
+    const flush = () => { const cbs = [...queue.values()]; queue.clear(); cbs.forEach((cb) => cb(clock)); };
+
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const t = makeTransform();
+    const h = new MousePanHandler(el, t, makeHelper(), {});
+    h.enable();
+
+    // Flick with the pan button (left) -> schedules inertia
+    el.dispatchEvent(pev('pointerdown', { button: 0, buttons: 1, clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { buttons: 1, clientX: 140, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { buttons: 1, clientX: 180, clientY: 100 }));
+    window.dispatchEvent(pev('pointerup', { buttons: 0, clientX: 180, clientY: 100 }));
+    expect(queue.size).toBeGreaterThan(0); // inertia scheduled
+
+    // A right-button down (rotate grab owned by another handler) must still stop the glide
+    el.dispatchEvent(pev('pointerdown', { button: 2, buttons: 2, clientX: 180, clientY: 100 }));
+    const cx = t.center.x, cy = t.center.y;
+    flush(); flush(); flush();
+    expect(t.center.x).toBe(cx); // fails before fix: right-button down never reaches inertia-cancel
+    expect(t.center.y).toBe(cy);
+    h.destroy();
+  });
 });
