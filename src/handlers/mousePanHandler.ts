@@ -16,7 +16,7 @@ export interface MousePanOptions {
   inertiaPanYSign?: 1 | -1;
   inertiaPanXSign?: 1 | -1;
   anchorTightness?: number;
-  yieldToBoxZoomShift?: boolean; // ignore shift+left downs so BoxZoom owns that gesture
+  yieldShiftLeft?: boolean; // yield shift+left to box zoom or shift-pitch
 }
 
 export class MousePanHandler {
@@ -62,7 +62,7 @@ export class MousePanHandler {
       inertiaPanYSign: 1,
       inertiaPanXSign: 1,
       anchorTightness: 1,
-      yieldToBoxZoomShift: false,
+      yieldShiftLeft: false,
       ...(opts || {}),
     };
     if (opts && 'inertiaPanFriction' in opts && opts.inertiaPanFriction == null) delete merged.inertiaPanFriction;
@@ -96,8 +96,9 @@ export class MousePanHandler {
     this.vx = this.vy = this.instVx = this.instVy = 0;
     this.gvx = this.gvz = this.igvx = this.igvz = 0;
     if (e.button !== this.opts.button) return;
-    // Shift+left-drag is reserved for box zoom whenever boxZoom is enabled.
-    if (this.opts.yieldToBoxZoomShift && e.shiftKey && e.button === 0) return;
+    // Shift+left-drag yields to whichever modifier gesture is active — box zoom
+    // when enabled, otherwise shift-pitch.
+    if (this.opts.yieldShiftLeft && e.shiftKey && e.button === 0) return;
     this.el.setPointerCapture?.(e.pointerId);
     this.dragging = false;
     this.startX = this.lastX = e.clientX;

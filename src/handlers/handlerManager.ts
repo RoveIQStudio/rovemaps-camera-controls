@@ -65,6 +65,13 @@ export class HandlerManager {
     const mousePanEnabled = options?.mousePan !== false;
     const mouseRotatePitchEnabled = options?.mouseRotatePitch !== false;
 
+    // Two-way shift+left arbitration: box zoom owns shift+left when enabled,
+    // otherwise the shift-pitch gesture does. Left-drag pan yields to whichever
+    // is active; rotate/pitch keeps yielding only to box zoom (its own name).
+    const mrpOptsPeek: MouseRotatePitchOptions = typeof options?.mouseRotatePitch === 'object' ? options.mouseRotatePitch : {};
+    const shiftPitchActive = mouseRotatePitchEnabled && (mrpOptsPeek.pitchModifier ?? 'shift') === 'shift';
+    const panYieldsShiftLeft = boxZoomEnabled || shiftPitchActive;
+
     // Suppress native context menu to allow two-finger/right-drag rotate+pitch without interruption
     if (options?.suppressContextMenu ?? true) {
       this.onCtx = (e: Event) => e.preventDefault();
@@ -103,7 +110,7 @@ export class HandlerManager {
           button: 2,
         };
         if (options?.inertiaPanFriction != null) basePanSecondary.inertiaPanFriction = options.inertiaPanFriction;
-        basePanSecondary.yieldToBoxZoomShift = basePanSecondary.yieldToBoxZoomShift ?? boxZoomEnabled;
+        basePanSecondary.yieldShiftLeft = basePanSecondary.yieldShiftLeft ?? panYieldsShiftLeft;
         this.mousePanSecondary = new MousePanHandler(this.el, this.transform, this.helper, basePanSecondary);
         this.mousePanSecondary.enable();
       }
@@ -124,7 +131,7 @@ export class HandlerManager {
     } else {
       // Default: left pans
       if (mousePanEnabled) {
-        basePan.yieldToBoxZoomShift = basePan.yieldToBoxZoomShift ?? boxZoomEnabled;
+        basePan.yieldShiftLeft = basePan.yieldShiftLeft ?? panYieldsShiftLeft;
         this.mousePan = new MousePanHandler(this.el, this.transform, this.helper, basePan);
         this.mousePan.enable();
       }

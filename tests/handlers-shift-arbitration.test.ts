@@ -14,7 +14,7 @@ describe('shift+left-drag arbitration', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
     const t = makeTransform();
-    const h = new MousePanHandler(el, t, makeHelper(), { yieldToBoxZoomShift: true } as any);
+    const h = new MousePanHandler(el, t, makeHelper(), { yieldShiftLeft: true } as any);
     h.enable();
     el.dispatchEvent(pev('pointerdown', { button: 0, buttons: 1, shiftKey: true, clientX: 100, clientY: 100 }));
     window.dispatchEvent(pev('pointermove', { buttons: 1, shiftKey: true, clientX: 150, clientY: 150 }));
@@ -39,7 +39,7 @@ describe('shift+left-drag arbitration', () => {
     h.destroy();
   });
 
-  it('boxZoom:false disables box zoom, so shift+left pans (yield is off)', () => {
+  it('with boxZoom:false, shift+left is pitch-only (pan yields to shift-pitch)', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
     const t = makeTransform();
@@ -54,9 +54,27 @@ describe('shift+left-drag arbitration', () => {
     window.dispatchEvent(pev('pointermove', { buttons: 1, shiftKey: true, clientX: 150, clientY: 150 }));
     window.dispatchEvent(pev('pointerup', { buttons: 0, shiftKey: true, clientX: 150, clientY: 150 }));
 
-    expect(t.adjustCalls).toBeGreaterThan(0); // pan occurred: yield is off when box zoom disabled
     expect(boxZoomFitRan).toBe(false); // box zoom handler was never constructed/enabled
     expect(t.zoom).toBe(0); // and no box-zoom fit mutated zoom
+    expect(t.adjustCalls).toBe(0); // pan yielded shift+left to the active shift-pitch gesture
+    const rpbz = helper.calls.find((c: unknown[]) => c[0] === 'rpbz');
+    expect(rpbz).toBeDefined(); // pitch ran on shift+left
+    expect(rpbz && (rpbz[2] as number)).not.toBe(0); // nonzero pitch delta
+    mgr.dispose();
+  });
+
+  it('with defaults (box zoom enabled), shift+left drives neither pan nor pitch — box zoom owns it', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const t = makeTransform();
+    const helper = makeHelper();
+    const mgr = new HandlerManager(el, t, helper, { onChange: () => {} });
+
+    el.dispatchEvent(pev('pointerdown', { button: 0, buttons: 1, shiftKey: true, clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pev('pointermove', { buttons: 1, shiftKey: true, clientX: 150, clientY: 150 }));
+
+    expect(t.adjustCalls).toBe(0); // pan yielded shift+left to box zoom
+    expect(helper.calls.some((c: unknown[]) => c[0] === 'rpbz')).toBe(false); // rotate/pitch yielded too
     mgr.dispose();
   });
 });

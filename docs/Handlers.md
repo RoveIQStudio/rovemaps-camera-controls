@@ -10,6 +10,11 @@
 - Rotate: right drag; `around: 'pointer'` preserves world point under cursor
 - Pitch: Shift + drag; `around: 'pointer'` preserves world point
 
+Shift+left-drag arbitration: box zoom owns shift+left-drag when enabled; with
+`boxZoom: false`, shift+left-drag is pitch-only (via the mouse rotate/pitch
+handler's shift modifier). Left-drag pan always yields shift+left to whichever
+of those is active; disable both to make shift+left pan again.
+
 ### Touch (Two-finger)
 - Pinch (zoom) + rotate: locks mode and preserves centroid when `around: 'pinch'`
 - Two-finger pitch: vertical movement maps to pitch; centroid preserved
