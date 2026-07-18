@@ -8,7 +8,7 @@ import { browser, raf, caf } from '../util/browser';
 import { shortestAngleDelta } from '../util/math';
 import { defaultEasing } from '../util/easing';
 import { HandlerManager, type HandlerManagerOptions } from '../handlers/handlerManager';
-import type { HandlerDelta } from '../handlers/types';
+import type { HandlerDelta, HandlerAxes } from '../handlers/types';
 import { computeFlyParams, uAt, widthAt } from '../util/flight';
 
 export type Projection = 'planar'; // future: 'spherical'
@@ -142,6 +142,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
   private _bearingSnapEps: number = 0.001;
   private _handlers?: HandlerManager;
   private _moveEndTimer: number | null = null;
+  private _pendingExternalAxes: HandlerAxes = {};
   private _zooming = false;
   private _rotating = false;
   private _pitching = false;
@@ -384,6 +385,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
       pan: !!(options.center || options.offset || (options as any).around === 'pointer')
     };
     this._startMoveLifecycle();
+    this._interruptActiveAnimation(axes);
     this._axisStart(axes);
 
     if (this._easeAbort) this._easeAbort.abort();
@@ -495,6 +497,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
       const easing = options.easing ?? defaultEasing;
       const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
       this._startMoveLifecycle();
+      this._interruptActiveAnimation(axes);
       this._axisStart(axes);
       if (this._easeAbort) this._easeAbort.abort();
       this._easeAbort = new AbortController();
@@ -546,6 +549,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
     const easing = options.easing ?? defaultEasing;
     const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
     this._startMoveLifecycle();
+    this._interruptActiveAnimation(axes);
     this._axisStart(axes);
     if (this._easeAbort) this._easeAbort.abort();
     this._easeAbort = new AbortController();
@@ -938,20 +942,30 @@ export class CameraController extends Evented<CameraMoveEvents> {
     }
   }
 
-  private _externalChange(delta?: { axes?: { pan?: boolean; zoom?: boolean; rotate?: boolean; pitch?: boolean; roll?: boolean }; originalEvent?: Event }) {
+  private _externalChange(delta?: { axes?: HandlerAxes; originalEvent?: Event }) {
     const axes = delta?.axes ?? {};
     this._startMoveLifecycle();
     this._axisStart(axes, delta?.originalEvent);
     this._axisEmitDuring(axes, delta?.originalEvent);
     this._emitRender();
+    const p = this._pendingExternalAxes;
+    this._pendingExternalAxes = {
+      zoom: p.zoom || axes.zoom,
+      rotate: p.rotate || axes.rotate,
+      pitch: p.pitch || axes.pitch,
+      roll: p.roll || axes.roll,
+      pan: p.pan || axes.pan,
+    };
     if (this._moveEndTimer != null) {
       (globalThis as any).clearTimeout?.(this._moveEndTimer);
     }
     // Debounce moveend after burst of external changes (SSR-safe timers)
     this._moveEndTimer = (globalThis as any).setTimeout?.(() => {
-      if (axes.rotate) this._applyBearingSnap(delta?.originalEvent);
+      const endAxes = this._pendingExternalAxes;
+      this._pendingExternalAxes = {};
+      if (endAxes.rotate) this._applyBearingSnap(delta?.originalEvent);
       this._applySoftPanBounds();
-      this._axisEnd(axes, delta?.originalEvent);
+      this._axisEnd(endAxes, delta?.originalEvent);
       this._endMoveLifecycle();
       this._moveEndTimer = null;
     }, 120) as any;
@@ -979,6 +993,19 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (axes.pitch && this._pitching) { this._pitching = false; this._fire('pitchend', { originalEvent }); }
     if (axes.roll && this._rolling) { this._rolling = false; this._fire('rollend', { originalEvent }); }
     if (axes.pan && this._dragging) { this._dragging = false; this._fire('dragend', { originalEvent }); }
+  }
+
+  /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
+  private _interruptActiveAnimation(newAxes: HandlerAxes) {
+    const prev = this._activeAnimation;
+    if (!prev) return;
+    this._axisEnd({
+      zoom: prev.axes.zoom && !newAxes.zoom,
+      rotate: prev.axes.rotate && !newAxes.rotate,
+      pitch: prev.axes.pitch && !newAxes.pitch,
+      roll: prev.axes.roll && !newAxes.roll,
+      pan: prev.axes.pan && !newAxes.pan,
+    });
   }
 
   private _endAllAxes() {
