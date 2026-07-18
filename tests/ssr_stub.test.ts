@@ -22,4 +22,12 @@ describe('SSR stub API completeness', () => {
     expect(ctl.transform.groundFromScreen({ x: 0, y: 0 })).toBeNull();
     expect(() => ctl.dispose()).not.toThrow();
   });
+
+  it('survives string coercion on the server', () => {
+    const ctl = createControllerForNext(() => {
+      throw new Error('options thunk must not run on the server');
+    });
+    expect(() => `${ctl}`).not.toThrow();
+    expect(String(ctl)).toBe('[object Object]');
+  });
 });

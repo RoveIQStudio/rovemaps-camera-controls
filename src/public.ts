@@ -41,6 +41,7 @@ function makeSSRStub(): SSRControllerStub {
   const stub: any = new Proxy({}, {
     get(_t, prop) {
       if (prop === 'then') return undefined; // never look thenable to await/Promise.resolve
+      if (prop === Symbol.toPrimitive) return undefined; // let String(stub) fall back to Object.prototype.toString
       if (prop in values) return values[prop];
       return chain;
     },
