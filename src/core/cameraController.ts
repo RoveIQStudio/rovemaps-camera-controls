@@ -386,8 +386,9 @@ export class CameraController extends Evented<CameraMoveEvents> {
       roll: target.roll !== start.roll,
       pan: !!(options.center || options.offset || (options as any).around === 'pointer')
     };
+    const pendingEnd = this._absorbPendingExternalEnd();
     this._startMoveLifecycle();
-    this._interruptActiveAnimation(axes);
+    this._interruptActiveAnimation(axes, pendingEnd);
     this._axisStart(axes);
 
     if (this._easeAbort) this._easeAbort.abort();
@@ -498,8 +499,9 @@ export class CameraController extends Evented<CameraMoveEvents> {
       if (options.maxDuration != null) duration = Math.min(duration, options.maxDuration);
       const easing = options.easing ?? defaultEasing;
       const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
+      const pendingEnd = this._absorbPendingExternalEnd();
       this._startMoveLifecycle();
-      this._interruptActiveAnimation(axes);
+      this._interruptActiveAnimation(axes, pendingEnd);
       this._axisStart(axes);
       if (this._easeAbort) this._easeAbort.abort();
       this._easeAbort = new AbortController();
@@ -550,8 +552,9 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
     const easing = options.easing ?? defaultEasing;
     const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
+    const pendingEnd = this._absorbPendingExternalEnd();
     this._startMoveLifecycle();
-    this._interruptActiveAnimation(axes);
+    this._interruptActiveAnimation(axes, pendingEnd);
     this._axisStart(axes);
     if (this._easeAbort) this._easeAbort.abort();
     this._easeAbort = new AbortController();
@@ -1002,25 +1005,50 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
   /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
   private _cancelActiveAnimation() {
-    if (!this._activeAnimation) return;
+    const pendingEnd = this._absorbPendingExternalEnd();
+    if (!this._activeAnimation) {
+      // No animation, but a pending gesture burst may still need closing out
+      if (pendingEnd.zoom || pendingEnd.rotate || pendingEnd.pitch || pendingEnd.roll || pendingEnd.pan) {
+        this._axisEnd(pendingEnd);
+        this._endMoveLifecycle();
+      }
+      return;
+    }
     if (this._easeAbort) this._easeAbort.abort();
     this._animGeneration++;
     if (this._animHandle != null) { caf(this._animHandle); this._animHandle = null; }
-    this._axisEnd(this._activeAnimation.axes);
+    this._axisEnd({ ...this._activeAnimation.axes, ...pendingEnd,
+      zoom: this._activeAnimation.axes.zoom || pendingEnd.zoom,
+      rotate: this._activeAnimation.axes.rotate || pendingEnd.rotate,
+      pitch: this._activeAnimation.axes.pitch || pendingEnd.pitch,
+      roll: this._activeAnimation.axes.roll || pendingEnd.roll,
+      pan: this._activeAnimation.axes.pan || pendingEnd.pan,
+    });
     this._activeAnimation = null;
     this._endMoveLifecycle();
   }
 
-  /** End axis lifecycles a previous animation started but the interrupting one won't finish. */
-  private _interruptActiveAnimation(newAxes: HandlerAxes) {
-    const prev = this._activeAnimation;
-    if (!prev) return;
+  /** Cancel the pending external-gesture debounce and return the axes it would have ended. */
+  private _absorbPendingExternalEnd(): HandlerAxes {
+    if (this._moveEndTimer != null) {
+      (globalThis as any).clearTimeout?.(this._moveEndTimer);
+      this._moveEndTimer = null;
+    }
+    const pending = this._pendingExternalAxes;
+    this._pendingExternalAxes = {};
+    return pending;
+  }
+
+  /** End axis lifecycles a previous animation or absorbed gesture burst started but the interrupting one won't finish. */
+  private _interruptActiveAnimation(newAxes: HandlerAxes, alsoEnd: HandlerAxes = {}) {
+    const prev = this._activeAnimation?.axes;
+    if (!prev && !(alsoEnd.zoom || alsoEnd.rotate || alsoEnd.pitch || alsoEnd.roll || alsoEnd.pan)) return;
     this._axisEnd({
-      zoom: prev.axes.zoom && !newAxes.zoom,
-      rotate: prev.axes.rotate && !newAxes.rotate,
-      pitch: prev.axes.pitch && !newAxes.pitch,
-      roll: prev.axes.roll && !newAxes.roll,
-      pan: prev.axes.pan && !newAxes.pan,
+      zoom: (prev?.zoom || alsoEnd.zoom) && !newAxes.zoom,
+      rotate: (prev?.rotate || alsoEnd.rotate) && !newAxes.rotate,
+      pitch: (prev?.pitch || alsoEnd.pitch) && !newAxes.pitch,
+      roll: (prev?.roll || alsoEnd.roll) && !newAxes.roll,
+      pan: (prev?.pan || alsoEnd.pan) && !newAxes.pan,
     });
   }
 
