@@ -3,10 +3,12 @@ export * from './core/cameraController';
 export * from './core/evented';
 export * from './transform/interfaces';
 export * from './helpers/icameraHelper';
-export * from './util/math';
-export * from './util/easing';
-export * from './util/browser';
-export * from './util/dom';
+
+// Curated utilities: map-domain math and easings consumers legitimately need.
+// Generic helpers (clamp/lerp/deg-rad) and DOM/browser internals are no longer public.
+export { normalizeAngleDeg, shortestAngleDelta, zoomScale, scaleZoom } from './util/math';
+export { defaultEasing, cubicBezier } from './util/easing';
+export type { Easing } from './util/easing';
 
 export type { HandlerManagerOptions } from './handlers/handlerManager';
 export type { HandlerAxes, HandlerDelta } from './handlers/types';
@@ -18,4 +20,3 @@ export type { KeyboardOptions } from './handlers/keyboardHandler';
 export type { DblclickOptions } from './handlers/dblclickHandler';
 export type { BoxZoomOptions } from './handlers/boxZoomHandler';
 export type { SafariGestureOptions } from './handlers/safariGestureHandler';
-

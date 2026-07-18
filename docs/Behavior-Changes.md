@@ -31,3 +31,12 @@ Consumer-visible changes from the Phase 1/2 remediation, ahead of the next relea
   back inside, like animated paths always did.
 - **`softPanBounds` settle is a clean lifecycle.** The settle back inside bounds
   runs after the triggering movement's `moveend`, as its own movestart/moveend pair.
+- **Pitch-modifier activation is left-button only (0.5.0).** Shift/alt+middle-drag
+  no longer starts a pitch drag; in `rightButtonPan` mode shift+right-drag pans
+  without pitch riding along.
+- **Public exports curated (0.5.0).** Generic utilities (`clamp`, `lerp`, `mod`,
+  `degToRad`, `radToDeg`, `rubberbandDamp`) and DOM/browser internals (`on`, `off`,
+  `raf`, `caf`, `browser`) are no longer exported from the package root. Map-domain
+  helpers (`normalizeAngleDeg`, `shortestAngleDelta`, `zoomScale`, `scaleZoom`) and
+  easings (`defaultEasing`, `cubicBezier`) remain. CJS consumers now get correct
+  types via a dedicated `require` types condition.

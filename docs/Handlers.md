@@ -1,5 +1,7 @@
 ## Handlers
 
+`HandlerManager` is internal — configure handlers through `createController({ handlers })`; only its options types are exported.
+
 ### Scroll Zoom
 - Trackpad vs wheel detection with `onWheelModeChange(mode)`
 - `around: 'center'|'pointer'` keeps target under cursor during zoom
