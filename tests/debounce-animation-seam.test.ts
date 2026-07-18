@@ -6,12 +6,13 @@ import { browser } from '../src/util/browser';
 
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
-function makeController() {
+function makeController(extra: Record<string, any> = {}) {
   const camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
   return new CameraController({
     camera,
     domElement: document.createElement('div') as any,
     useExternalAnimationLoop: true,
+    ...extra,
   });
 }
 
@@ -73,6 +74,42 @@ describe('external-gesture debounce vs programmatic animation', () => {
     fakeNow = 200;
     ctl.update();
     expect(events).toEqual(['zoomstart', 'zoomend']);
+    ctl.dispose();
+  });
+
+  it('an absorbed rotate burst still applies the bearing snap the debounce would have', () => {
+    vi.useFakeTimers();
+    let fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    const ctl = makeController({ bearingSnap: 5 });
+    ctl.jumpTo({ bearing: 3 });
+
+    (ctl as any)._externalChange({ axes: { rotate: true } }); // rotate burst
+    ctl.easeTo({ zoom: 2, duration: 100 });                   // zoom-only animation
+
+    // The absorbed rotate burst must snap the bearing to 0 before the animation captures start.
+    expect(ctl.getBearing()).toBe(0); // fails before fix: 3
+
+    fakeNow = 200;
+    ctl.update(); // zoom animation completes; bearing untouched
+    expect(ctl.getBearing()).toBe(0);
+    ctl.dispose();
+  });
+
+  it('a reduced-motion jump re-applies soft pan bounds (settle animation runs)', () => {
+    vi.useFakeTimers();
+    const fakeNow = 0;
+    vi.spyOn(browser, 'now').mockImplementation(() => fakeNow);
+    vi.spyOn(browser, 'reducedMotion').mockReturnValue(true);
+    const ctl = makeController({
+      softPanBounds: true,
+      panBounds: { min: { x: -10, y: -10 }, max: { x: 10, y: 10 } },
+    });
+
+    ctl.easeTo({ center: { x: 50, y: 0 } }); // reduced motion -> instant jump outside bounds
+
+    // The jump lands at x=50 (outside bounds); soft pan bounds must nudge back via a settle animation.
+    expect(ctl.isMoving()).toBe(true); // fails before fix: false
     ctl.dispose();
   });
 });

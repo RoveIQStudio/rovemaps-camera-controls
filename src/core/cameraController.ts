@@ -331,6 +331,11 @@ export class CameraController extends Evented<CameraMoveEvents> {
     const essential = options.essential ?? false;
     const animate = options.animate ?? true;
 
+    // Absorb any pending external-gesture debounce before capturing start: if it would have
+    // snapped the bearing, snap now so the animation captures (and lands on) the snapped value.
+    const pendingEnd = this._absorbPendingExternalEnd();
+    if (pendingEnd.rotate) this._applyBearingSnap();
+
     const start = {
       center: this.getCenter(),
       zoom: this.getZoom(),
@@ -368,12 +373,16 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
     // Reduced motion / no-animate: land on the fully-resolved target in one jump
     if (!essential && browser.reducedMotion()) {
-      this._cancelActiveAnimation();
-      return this.jumpTo(target);
+      this._cancelActiveAnimation(pendingEnd);
+      const r = this.jumpTo(target);
+      this._applySoftPanBounds();
+      return r;
     }
     if (!animate) {
-      this._cancelActiveAnimation();
-      return this.jumpTo(target);
+      this._cancelActiveAnimation(pendingEnd);
+      const r = this.jumpTo(target);
+      this._applySoftPanBounds();
+      return r;
     }
 
     const duration = Math.max(0, options.duration ?? 300);
@@ -386,7 +395,6 @@ export class CameraController extends Evented<CameraMoveEvents> {
       roll: target.roll !== start.roll,
       pan: !!(options.center || options.offset || (options as any).around === 'pointer')
     };
-    const pendingEnd = this._absorbPendingExternalEnd();
     this._startMoveLifecycle();
     this._interruptActiveAnimation(axes, pendingEnd);
     this._axisStart(axes);
@@ -433,6 +441,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
     //    the time-eased zoom path. This removes visual mismatch between center arc and zoom.
     //  - Keep the time reparameterization (u(s)/u_end ~= e) so center progress matches easing.
     //  - Add an option to preserve current zoom explicitly (default behavior when zoom omitted).
+    // Absorb any pending external-gesture debounce before capturing start: if it would have
+    // snapped the bearing, snap now so the flight captures (and lands on) the snapped value.
+    const pendingEnd = this._absorbPendingExternalEnd();
+    if (pendingEnd.rotate) this._applyBearingSnap();
     const startCenter = this.getCenter();
     const endCenter = options.center ?? startCenter;
     const startZoom = this.getZoom();
@@ -499,7 +511,6 @@ export class CameraController extends Evented<CameraMoveEvents> {
       if (options.maxDuration != null) duration = Math.min(duration, options.maxDuration);
       const easing = options.easing ?? defaultEasing;
       const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
-      const pendingEnd = this._absorbPendingExternalEnd();
       this._startMoveLifecycle();
       this._interruptActiveAnimation(axes, pendingEnd);
       this._axisStart(axes);
@@ -552,7 +563,6 @@ export class CameraController extends Evented<CameraMoveEvents> {
 
     const easing = options.easing ?? defaultEasing;
     const axes = { zoom: endZoom !== startZoom, rotate: endBearing !== startBearing, pitch: endPitch !== startPitch, roll: endRoll !== startRoll, pan: worldDist > 0 };
-    const pendingEnd = this._absorbPendingExternalEnd();
     this._startMoveLifecycle();
     this._interruptActiveAnimation(axes, pendingEnd);
     this._axisStart(axes);
@@ -1004,8 +1014,16 @@ export class CameraController extends Evented<CameraMoveEvents> {
   }
 
   /** Hard-cancel any in-flight animation before an instant jump supersedes it. */
-  private _cancelActiveAnimation() {
-    const pendingEnd = this._absorbPendingExternalEnd();
+  private _cancelActiveAnimation(alsoEnd: HandlerAxes = {}) {
+    // Fold in any burst the caller already absorbed with one still pending here.
+    const absorbed = this._absorbPendingExternalEnd();
+    const pendingEnd: HandlerAxes = {
+      zoom: absorbed.zoom || alsoEnd.zoom,
+      rotate: absorbed.rotate || alsoEnd.rotate,
+      pitch: absorbed.pitch || alsoEnd.pitch,
+      roll: absorbed.roll || alsoEnd.roll,
+      pan: absorbed.pan || alsoEnd.pan,
+    };
     if (!this._activeAnimation) {
       // No animation, but a pending gesture burst may still need closing out
       if (pendingEnd.zoom || pendingEnd.rotate || pendingEnd.pitch || pendingEnd.roll || pendingEnd.pan) {
@@ -1017,7 +1035,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (this._easeAbort) this._easeAbort.abort();
     this._animGeneration++;
     if (this._animHandle != null) { caf(this._animHandle); this._animHandle = null; }
-    this._axisEnd({ ...this._activeAnimation.axes, ...pendingEnd,
+    this._axisEnd({
       zoom: this._activeAnimation.axes.zoom || pendingEnd.zoom,
       rotate: this._activeAnimation.axes.rotate || pendingEnd.rotate,
       pitch: this._activeAnimation.axes.pitch || pendingEnd.pitch,
