@@ -32,3 +32,8 @@ export function scaleZoom(scale: number) {
   return Math.log2(scale);
 }
 
+export function shortestAngleDelta(from: number, to: number) {
+  // Signed delta in (-180, 180] taking the short way around the circle
+  return normalizeAngleDeg(to - from);
+}
+

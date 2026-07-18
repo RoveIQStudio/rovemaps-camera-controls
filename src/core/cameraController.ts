@@ -5,6 +5,7 @@ import type { ICameraHelper, EaseOptions, FlyToOptions } from '../helpers/icamer
 import { ThreePlanarTransform } from '../transform/threePlanarTransform';
 import type { ITransform, Padding, TransformConstraints, Bounds2D, MethodOptions, Center } from '../transform/interfaces';
 import { browser, raf, caf } from '../util/browser';
+import { shortestAngleDelta } from '../util/math';
 import { defaultEasing } from '../util/easing';
 import { HandlerManager, type HandlerManagerOptions } from '../handlers/handlerManager';
 import type { HandlerDelta } from '../handlers/types';
@@ -362,6 +363,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
       target.center = { x: target.center.x + dxW, y: target.center.y + dyW, z: target.center.z };
     }
 
+    // Re-express angular targets so interpolation takes the short way around
+    target.bearing = start.bearing + shortestAngleDelta(start.bearing, target.bearing);
+    target.roll = start.roll + shortestAngleDelta(start.roll, target.roll);
+
     if (!animate) {
       return this.jumpTo(target);
     }
@@ -435,11 +440,13 @@ export class CameraController extends Evented<CameraMoveEvents> {
     const startZoom = this.getZoom();
     const endZoom = typeof options.zoom === 'number' ? options.zoom : startZoom;
     const startBearing = this.getBearing();
-    const endBearing = typeof options.bearing === 'number' ? options.bearing : startBearing;
+    const endBearingRaw = typeof options.bearing === 'number' ? options.bearing : startBearing;
+    const endBearing = startBearing + shortestAngleDelta(startBearing, endBearingRaw);
     const startPitch = this.getPitch();
     const endPitch = typeof options.pitch === 'number' ? options.pitch : startPitch;
     const startRoll = this.getRoll();
-    const endRoll = typeof options.roll === 'number' ? options.roll : startRoll;
+    const endRollRaw = typeof options.roll === 'number' ? options.roll : startRoll;
+    const endRoll = startRoll + shortestAngleDelta(startRoll, endRollRaw);
 
     const dx = endCenter.x - startCenter.x;
     const dy = endCenter.y - startCenter.y;
