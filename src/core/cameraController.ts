@@ -150,6 +150,7 @@ export class CameraController extends Evented<CameraMoveEvents> {
   private _dragging = false;
   private _constraints: TransformConstraints = { minZoom: -Infinity, maxZoom: Infinity, minPitch: 0, maxPitch: 85 };
   private _softClamping = false;
+  private _softClampTimer: ReturnType<typeof setTimeout> | null = null;
   private _suppressEvents: boolean = false;
   private _isInternalUpdate: boolean = false;
   private _resizeObserver?: ResizeObserver;
@@ -248,6 +249,11 @@ export class CameraController extends Evented<CameraMoveEvents> {
     if (this._moveEndTimer != null) {
       (globalThis as any).clearTimeout?.(this._moveEndTimer);
       this._moveEndTimer = null;
+    }
+    if (this._softClampTimer != null) {
+      (globalThis as any).clearTimeout?.(this._softClampTimer);
+      this._softClampTimer = null;
+      this._softClamping = false;
     }
     this._endAllAxes();
   }
@@ -699,7 +705,11 @@ export class CameraController extends Evented<CameraMoveEvents> {
     const loop = () => {
       if (gen !== this._animGeneration) return; // superseded
       const continues = this._advanceAnimation(browser.now());
-      if (continues) { this._animHandle = raf(loop); } else { this._animHandle = null; }
+      if (continues) {
+        this._animHandle = raf(loop);
+      } else if (gen === this._animGeneration) {
+        this._animHandle = null; // only clear if no newer loop (e.g. soft-bounds settle) took over
+      }
     };
     this._animHandle = raf(loop);
   }
@@ -731,12 +741,12 @@ export class CameraController extends Evented<CameraMoveEvents> {
           this.transform.setPadding({ ...anim.target.padding });
         });
         if (anim.axes.rotate) this._applyBearingSnap();
-        this._applySoftPanBounds();
         this._axisEmitDuring(anim.axes);
         this._emitRender();
         this._axisEnd(anim.axes);
         this._endMoveLifecycle();
         this._activeAnimation = null;
+        this._applySoftPanBounds();
         return false;
       } else {
         const groundBefore = anim.anchorPt ? this.transform.groundFromScreen(anim.anchorPt) : null;
@@ -808,13 +818,13 @@ export class CameraController extends Evented<CameraMoveEvents> {
             this.transform.setCenter({ x: fp.endCenter.x, y: fp.endCenter.y, z: fp.endCenter.z ?? fp.startCenter.z });
           });
           if (fp.endBearing !== fp.startBearing) this._applyBearingSnap();
-          this._applySoftPanBounds();
           // no-op
           this._axisEmitDuring(anim.axes);
           this._emitRender();
           this._axisEnd(anim.axes);
           this._endMoveLifecycle();
           this._activeAnimation = null;
+          this._applySoftPanBounds();
           return false;
         } else {
           // Intermediate state (batch all changes in one apply to avoid two-phase nudge)
@@ -844,12 +854,12 @@ export class CameraController extends Evented<CameraMoveEvents> {
                 this.transform.setCenter({ x: fp.endCenter.x, y: fp.endCenter.y, z: fp.endCenter.z ?? fp.startCenter.z });
               });
               if (fp.endBearing !== fp.startBearing) this._applyBearingSnap();
-              this._applySoftPanBounds();
               this._axisEmitDuring(anim.axes);
               this._emitRender();
               this._axisEnd(anim.axes);
               this._endMoveLifecycle();
               this._activeAnimation = null;
+              this._applySoftPanBounds();
               return false;
             }
           }
@@ -871,13 +881,13 @@ export class CameraController extends Evented<CameraMoveEvents> {
           });
           // no-op
           if (fp.endBearing !== fp.startBearing) this._applyBearingSnap();
-          this._applySoftPanBounds();
           // no-op
           this._axisEmitDuring(anim.axes);
           this._emitRender();
           this._axisEnd(anim.axes);
           this._endMoveLifecycle();
           this._activeAnimation = null;
+          this._applySoftPanBounds();
           return false;
         } else {
           // Reparameterize the path by eased time: find s such that u(s)/u1 ~= e
@@ -929,12 +939,12 @@ export class CameraController extends Evented<CameraMoveEvents> {
                 this.transform.setCenter({ x: fp.endCenter.x, y: fp.endCenter.y, z: fp.endCenter.z ?? fp.startCenter.z });
               });
               if (fp.endBearing !== fp.startBearing) this._applyBearingSnap();
-              this._applySoftPanBounds();
               this._axisEmitDuring(anim.axes);
               this._emitRender();
               this._axisEnd(anim.axes);
               this._endMoveLifecycle();
               this._activeAnimation = null;
+              this._applySoftPanBounds();
               return false;
             }
           }
@@ -989,10 +999,10 @@ export class CameraController extends Evented<CameraMoveEvents> {
       const endAxes = this._pendingExternalAxes;
       this._pendingExternalAxes = {};
       if (endAxes.rotate) this._applyBearingSnap(delta?.originalEvent);
-      this._applySoftPanBounds();
       this._axisEnd(endAxes, delta?.originalEvent);
       this._endMoveLifecycle();
       this._moveEndTimer = null;
+      this._applySoftPanBounds();
     }, 120) as any;
   }
 
@@ -1111,8 +1121,9 @@ export class CameraController extends Evented<CameraMoveEvents> {
       this._softClamping = true;
       // Smooth nudge back to bounds
       this.easeTo({ center: clamped, duration: 180, easing: defaultEasing, essential: true });
-      // Clear flag after short delay to avoid recursion (SSR-safe)
-      (globalThis as any).setTimeout?.(() => { this._softClamping = false; }, 220);
+      // Clear flag after short delay to avoid recursion (SSR-safe); track the timer so dispose can cancel it
+      if (this._softClampTimer != null) (globalThis as any).clearTimeout?.(this._softClampTimer);
+      this._softClampTimer = (globalThis as any).setTimeout?.(() => { this._softClamping = false; this._softClampTimer = null; }, 220) as any;
     }
   }
 }

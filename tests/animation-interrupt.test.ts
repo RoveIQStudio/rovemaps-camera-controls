@@ -1,38 +1,5 @@
+import { pending, flushFrames } from './helpers/rafQueue';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-
-const g: any = globalThis as any;
-let nextRafId = 1;
-const pending = new Map<number, FrameRequestCallback>();
-g.window = {
-  requestAnimationFrame: (cb: FrameRequestCallback) => { const id = nextRafId++; pending.set(id, cb); return id; },
-  cancelAnimationFrame: (id: number) => { pending.delete(id); },
-  matchMedia: () => ({ matches: false, addListener() {}, removeListener() {} }),
-  addEventListener() {},
-  removeEventListener() {},
-};
-// Node 21+ exposes a read-only `navigator` global (getter-only), so an
-// unconditional assignment throws. Guard it like tests/helpers/nodePolyfill.ts;
-// the built-in navigator's maxTouchPoints is undefined (undefined > 0 === false),
-// matching the intended non-touch { maxTouchPoints: 0 } behavior.
-if (!g.navigator) g.navigator = { maxTouchPoints: 0 };
-g.document = {
-  body: { appendChild() {} },
-  createElement: () => ({
-    addEventListener() {},
-    removeEventListener() {},
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
-    style: {},
-    clientWidth: 800,
-    clientHeight: 600,
-  }),
-};
-
-function flushFrames(now: number) {
-  const cbs = [...pending.values()];
-  pending.clear();
-  for (const cb of cbs) cb(now);
-}
-
 import * as THREE from 'three';
 import { CameraController } from '../src/core/cameraController';
 import { browser } from '../src/util/browser';
